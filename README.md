@@ -21,7 +21,7 @@ proyecto conservan el nombre antiguo.
 ## Distribución
 
 Trovador se reparte **portable**: un zip con `Trovador.exe` en las
-[releases de GitHub](https://github.com/__REPO__/releases). No hay
+[releases de GitHub](https://github.com/vmvwebworks/Trovador/releases). No hay
 instalador: se saca el exe a una carpeta y ya; las herramientas se las
 descarga él la primera vez a `bin\` junto al exe, y los datos van a
 `%APPDATA%\Trovador`. Para actualizar, sustituir el exe por el nuevo.
@@ -32,7 +32,7 @@ la versión dentro (`-ldflags "-X main.version=1.0.0"`; sale en la cabecera
 de la app) y publica el zip. En cada push, `test.yml` pasa `go vet` y los
 tests unitarios (los de integración necesitan las herramientas y se pasan
 a mano). La página del proyecto (`docs/`, GitHub Pages) está en
-https://__PAGES__/.
+https://vmvwebworks.github.io/Trovador/.
 ## Uso
 
 Ejecuta `build/bin/Trovador.exe`. La primera vez descarga yt-dlp, ffmpeg
