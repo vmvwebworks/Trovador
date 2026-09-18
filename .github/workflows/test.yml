@@ -1,0 +1,14 @@
+# En cada push: vet y los tests unitarios (los de integración necesitan las
+# herramientas descargadas y no corren aquí).
+name: test
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go vet ./...
+      - run: go test ./...

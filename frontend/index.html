@@ -1,0 +1,901 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trovador</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #171a21; --line: #262a34; --text: #e6e8ee; --muted: #8b93a7;
+    --accent: #6ee7b7; --ok: #6ee7b7; --bad: #f87171; --run: #fbbf24; --mono: ui-monospace, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 system-ui, "Segoe UI", sans-serif;
+    user-select: none; -webkit-user-select: none; }
+  textarea, .log, .files, input, table { user-select: text; -webkit-user-select: text; }
+  main { max-width: 1000px; margin: 0 auto; padding: 18px 18px 48px; }
+  h1 { font-size: 20px; margin: 0; letter-spacing: .02em; }
+  h1 span { color: var(--accent); }
+  h1 .ver { color: var(--muted); font-size: 12px; font-weight: 400; margin-left: 6px; }
+  h1 .logo { width: 28px; height: 28px; vertical-align: -7px; margin-right: 8px; border-radius: 7px; }
+  .top { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .spacer { flex: 1; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; margin-bottom: 16px; }
+  textarea { width: 100%; min-height: 96px; resize: vertical; background: var(--bg); color: var(--text);
+    border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; font: 13px var(--mono); }
+  textarea:focus, select:focus, input:focus { outline: 1px solid var(--accent); border-color: var(--accent); }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+  .row.first { margin-top: 0; }
+  label { color: var(--muted); font-size: 13px; display: inline-flex; gap: 6px; align-items: center; }
+  select, input[type=text] { background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; font: inherit; }
+  input[type=text] { flex: 1; min-width: 160px; }
+  button { background: var(--accent); color: #062b1f; border: 0; border-radius: 8px; padding: 8px 16px; font: inherit; font-weight: 600; cursor: pointer; }
+  button:disabled { opacity: .45; cursor: default; }
+  button.ghost { background: transparent; color: var(--muted); border: 1px solid var(--line); padding: 4px 10px; font-weight: 500; }
+  button.ghost:hover:not(:disabled) { color: var(--text); }
+  .err { color: var(--bad); font-size: 13px; }
+  .meta { font-size: 13px; color: var(--muted); white-space: nowrap; }
+  h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 22px 0 8px; display: flex; align-items: center; gap: 10px; }
+  kbd { font: 11px var(--mono); color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; }
+  .empty { color: var(--muted); font-size: 13px; }
+  .mono { font: 12px var(--mono); }
+
+  /* pestañas */
+  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 18px; }
+  .tabs button { background: none; color: var(--muted); border: 0; border-bottom: 2px solid transparent; border-radius: 0;
+    padding: 8px 14px; font-weight: 500; margin-bottom: -1px; }
+  .tabs button.active { color: var(--text); border-bottom-color: var(--accent); }
+  .tab { display: none; }
+  .tab.active { display: block; }
+
+  /* barra de herramientas */
+  .tools { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); }
+  .tools .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--run); flex-shrink: 0; }
+  .tools.ready .dot { background: var(--ok); }
+  .tools.error .dot { background: var(--bad); }
+  .tools .bar { flex: 1; height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; max-width: 220px; }
+  .tools .bar i { display: block; height: 100%; background: var(--accent); width: 0; transition: width .2s; }
+  .tools .versions { font: 12px var(--mono); }
+
+  /* descargas */
+  .dest { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+  .path { flex: 1; min-width: 160px; font: 12px var(--mono); color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; }
+  .job { border-top: 1px solid var(--line); padding: 10px 0; }
+  .job:first-child { border-top: 0; padding-top: 0; }
+  .job header { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+  .running .dot { background: var(--run); box-shadow: 0 0 0 3px rgba(251,191,36,.2); animation: pulse 1.2s infinite; }
+  .done .dot { background: var(--ok); }
+  .failed .dot, .canceled .dot { background: var(--bad); }
+  @keyframes pulse { 50% { opacity: .4; } }
+  .urls { font: 12px var(--mono); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 160px; }
+  .pct { font: 12px var(--mono); color: var(--run); min-width: 48px; text-align: right; }
+  .log { display: none; margin-top: 8px; background: var(--bg); border-radius: 8px; padding: 10px 12px;
+    font: 12px/1.45 var(--mono); color: var(--muted); max-height: 240px; overflow: auto; white-space: pre-wrap; word-break: break-all; }
+  .job.open .log { display: block; }
+  .files { list-style: none; margin: 0; padding: 0; font: 12px var(--mono); }
+  .files li { display: flex; gap: 12px; padding: 4px 0; border-top: 1px solid var(--line); }
+  .files li:first-child { border-top: 0; }
+  .files .size { color: var(--muted); margin-left: auto; white-space: nowrap; }
+  #settings[hidden] { display: none; }
+
+  /* biblioteca */
+  .lib-head { display: flex; gap: 16px; align-items: flex-start; }
+  .cover { width: 96px; height: 96px; border-radius: 8px; background: var(--bg); border: 1px solid var(--line); object-fit: cover; flex-shrink: 0; }
+  .cover.none { display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 11px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; color: var(--muted); font-weight: 500; font-size: 12px; padding: 4px 8px; border-bottom: 1px solid var(--line); }
+  td { padding: 5px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tr:last-child td { border-bottom: 0; }
+  td.num, th.num { text-align: right; white-space: nowrap; }
+  td.num { font-family: var(--mono); font-size: 12px; }
+  td.text { word-break: break-word; min-width: 140px; }
+  td.dim, .dim { color: var(--muted); }
+  tr.pick { cursor: pointer; }
+  tr.pick:hover td { background: rgba(255,255,255,.03); }
+  tr.selected td { background: rgba(110,231,183,.08); }
+  .ok { color: var(--ok); } .warn { color: var(--run); } .bad { color: var(--bad); }
+  .lib-log { background: var(--bg); border-radius: 8px; padding: 10px 12px; font: 12px/1.45 var(--mono); color: var(--muted);
+    max-height: 180px; overflow: auto; white-space: pre-wrap; word-break: break-all; min-height: 40px; }
+  .summary { font-size: 13px; margin-top: 8px; }
+  .apply { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+  .apply label { gap: 4px; }
+  .state { font-size: 12px; white-space: nowrap; }
+  .state.ok, .state.done, .state.extra { color: var(--ok); } .state.splittable, .state.partial, .state.single { color: var(--run); }
+  .state.mismatch, .state.error { color: var(--bad); } .state.notfound, .state.pending { color: var(--muted); }
+  .state.analyzing, .state.working { color: var(--run); animation: pulse 1.2s infinite; }
+  td.name { cursor: pointer; } td.name:hover { color: var(--accent); }
+  td.msg { color: var(--muted); font-size: 12px; max-width: 420px; }
+  .links button { padding: 1px 8px; font-size: 12px; margin-top: 4px; }
+  tr.cands > td { background: var(--bg); padding: 10px 12px; }
+  table.inner { font-size: 12px; } table.inner th, table.inner td { padding: 3px 6px; }
+  .menu { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; gap: 8px; background: rgba(0,0,0,.55); z-index: 10; }
+  .menu button { background: var(--panel); color: var(--text); padding: 10px 18px; }
+  /* conmutador lista / miniaturas */
+  /* ---- reproductor ---- */
+  body.wide main { max-width: 1600px; }
+  main { padding-bottom: 96px; } /* sitio para la barra de reproducción */
+  .player-head { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; position: sticky; top: 0; z-index: 40; background: var(--bg); padding: 10px 0 10px; margin-top: -10px; box-shadow: 0 8px 12px -8px rgba(0,0,0,.6); }
+  .player-head .path.small { font-size: 12px; max-width: 260px; }
+  button.small { padding: 3px 9px; font-size: 12px; }
+  .player-search { position: relative; flex: 1; min-width: 260px; max-width: 620px; display: flex; align-items: center; }
+  .player-search input { width: 100%; font-size: 16px; padding: 10px 40px 10px 40px; border-radius: 22px; background: var(--panel); border: 1px solid var(--line); color: var(--text);
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238b93a7' stroke-width='2.2' stroke-linecap='round'><circle cx='11' cy='11' r='7'/><path d='m20 20-3.6-3.6'/></svg>");
+    background-repeat: no-repeat; background-position: 14px center; }
+  .player-search input:focus { outline: none; border-color: var(--accent); }
+  .player-search #plFilterClear { position: absolute; right: 8px; padding: 2px 8px; }
+  #plSongs { position: absolute; top: calc(100% + 6px); left: 0; right: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; z-index: 30;
+    box-shadow: 0 12px 30px rgba(0,0,0,.45); padding: 6px; max-height: 60vh; overflow: auto; }
+  #plSongs .sh { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; padding: 6px 8px 2px; }
+  #plSongs .s { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 6px; cursor: default; }
+  #plSongs .s:hover { background: var(--bg); }
+  #plSongs .s img, #plSongs .s .ph { width: 36px; height: 36px; border-radius: 4px; object-fit: cover; background: var(--bg); flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: var(--muted); }
+  #plSongs .s .i { flex: 1; min-width: 0; }
+  #plSongs .s .i b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+  #plSongs .s .i span { display: block; color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #plSongs .s .acts { display: flex; gap: 4px; flex-shrink: 0; }
+  #plSongs .more { color: var(--muted); font-size: 12px; padding: 6px 8px; }
+  .player-body { display: flex; gap: 16px; align-items: flex-start; margin-top: 14px; }
+  .player-left { flex: 1; min-width: 0; }
+  .player-album { width: 300px; flex-shrink: 0; position: sticky; top: 74px; max-height: calc(100vh - 250px); overflow: auto; }
+  .player-right { width: 330px; flex-shrink: 0; position: sticky; top: 74px; max-height: calc(100vh - 250px); display: flex; flex-direction: column; }
+  .player-right .queue { overflow: auto; flex: 1; }
+  .pgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 16px 14px; }
+  .pcard { cursor: pointer; position: relative; border-radius: 8px; padding: 6px; border: 1px solid transparent; }
+  .pcard:hover { background: var(--panel); }
+  .pcard.sel { border-color: var(--accent); background: var(--panel); }
+  .pcard .art { width: 100%; aspect-ratio: 1; border-radius: 6px; background: var(--panel); border: 1px solid var(--line); object-fit: cover; display: block; }
+  .pcard .art.none { display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 26px; }
+  .pcard .t { font-weight: 600; font-size: 13px; margin-top: 7px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; }
+  .pcard .a { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; }
+  .pcard .hit { color: var(--accent); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; }
+  .pcard .ov { position: absolute; top: 12px; display: none; border-radius: 50%; width: 32px; height: 32px; padding: 0; font-size: 14px; background: rgba(15,17,21,.88); border: 1px solid var(--line); color: var(--text); align-items: center; justify-content: center; }
+  .pcard .ov.go { left: 12px; } .pcard .ov.add { right: 12px; }
+  .pcard:hover .ov { display: inline-flex; }
+  .pcard .ov:hover { background: var(--accent); color: #0b0e14; }
+  .pcard.inqueue .art { outline: 2px solid var(--accent); }
+  .player-album .cover { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; background: var(--bg); border: 1px solid var(--line); display: block; }
+  .player-album .cover.none { display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 40px; }
+  .player-album h3 { margin: 10px 0 0; font-size: 15px; line-height: 1.3; }
+  .player-album .sub { color: var(--muted); font-size: 12px; margin-bottom: 8px; }
+  .player-album .acts { display: flex; gap: 6px; margin-bottom: 8px; }
+  .player-album .acts button { flex: 1; }
+  .player-album .close { position: absolute; top: 18px; right: 18px; z-index: 2; border-radius: 50%; width: 28px; height: 28px; padding: 0; background: rgba(15,17,21,.8); }
+  .tl { width: 100%; border-collapse: collapse; }
+  .tl td { padding: 4px 4px; border-top: 1px solid var(--line); font-size: 13px; vertical-align: middle; }
+  .tl tr:first-child td { border-top: 0; }
+  .tl tr:hover td { background: var(--bg); }
+  .tl tr.hit td { color: var(--accent); }
+  .tl tr.now td { color: var(--accent); }
+  .tl .n { color: var(--muted); width: 22px; text-align: right; font-variant-numeric: tabular-nums; }
+  .tl .d { color: var(--muted); width: 44px; text-align: right; font-variant-numeric: tabular-nums; }
+  .tl .acts { width: 54px; white-space: nowrap; text-align: right; }
+  .tl .acts button { visibility: hidden; }
+  .tl tr:hover .acts button { visibility: visible; }
+  button.tiny { padding: 0 6px; font-size: 11px; line-height: 20px; height: 22px; }
+  select.small { padding: 2px 6px; font-size: 12px; }
+  .tl .acts { width: 82px; }
+  .noplay { color: var(--run); font-size: 11px; }
+  .queue .q .conv { background: none; border: 1px solid var(--line); color: var(--run); border-radius: 4px; padding: 0 6px; font-size: 11px; line-height: 18px; }
+  .queue .q { display: flex; gap: 8px; align-items: center; padding: 5px 6px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+  .queue .q:hover { background: var(--bg); }
+  .queue .q.now { background: rgba(110,231,183,.12); }
+  .queue .q .n { color: var(--muted); width: 22px; text-align: right; flex-shrink: 0; }
+  .queue .q.loading .n { color: var(--run); }
+  .queue .q .i { flex: 1; min-width: 0; }
+  .queue .q .i b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+  .queue .q .i span { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+  .queue .q .d { color: var(--muted); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+  .queue .q .x { background: none; border: 0; color: var(--muted); padding: 0 4px; font-size: 14px; }
+  .queue .q .x:hover { color: var(--bad); }
+  .queue .qh { color: var(--muted); font-size: 12px; padding: 8px 6px 2px; }
+  #nowbar { position: fixed; left: 0; right: 0; bottom: 0; height: 72px; background: var(--panel); border-top: 1px solid var(--line);
+    display: flex; align-items: center; gap: 12px; padding: 0 16px; z-index: 50; }
+  #nowbar img, #nowbar .nb-ph { width: 52px; height: 52px; border-radius: 6px; object-fit: cover; background: var(--bg); border: 1px solid var(--line); flex-shrink: 0; }
+  #nowbar .nb-ph { display: flex; align-items: center; justify-content: center; color: var(--muted); }
+  .nb-info { width: 260px; min-width: 120px; flex-shrink: 1; }
+  .nb-title { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .nb-sub { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .nb-ctl { display: flex; gap: 4px; }
+  .nb-ctl button { width: 36px; height: 36px; padding: 0; border-radius: 50%; font-size: 14px; }
+  .nb-ctl #nbPlay { background: var(--accent); color: #0b0e14; border: 0; width: 42px; height: 42px; font-size: 16px; }
+  .nb-time { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; width: 42px; text-align: center; }
+  #nbSeek { flex: 1; min-width: 80px; accent-color: var(--accent); }
+  #nbVol { width: 90px; accent-color: var(--accent); }
+  button.play { padding: 0 6px; font-size: 11px; line-height: 20px; }
+  /* ---- gramola (favoritos): la foto del mueble con el cristal transparente ---- */
+  #plFavs.active { color: var(--accent); border-color: var(--accent); }
+  .fv-switch { display: flex; justify-content: center; gap: 6px; margin: 2px 0 14px; }
+  .fv-switch button { background: transparent; color: var(--muted); border: 1px solid var(--line); border-radius: 16px; padding: 4px 14px; font-size: 13px; font-weight: 500; }
+  .fv-switch button.active { color: var(--accent); border-color: var(--accent); background: rgba(110,231,183,.08); }
+  .fv-switch button:disabled { opacity: .35; }
+  .pcard .ov.fav { top: auto; bottom: 44px; right: 12px; font-size: 13px; }
+  .pcard.isfav .ov.fav { display: inline-flex; color: var(--accent); }
+  /* El mueble es jukebox/cabinet.png (1024×1536, fondo y cristal
+     transparentes). Las piezas vivas se colocan en porcentajes del mueble,
+     medidos sobre la imagen (tools/cabinet): detrás, el carrusel (se ve por
+     el cristal); delante, la tira de título sobre el panel de papel y el
+     selector en la franja de madera de debajo. */
+  .jukebox { width: 760px; max-width: 100%; margin: 0 auto; }
+  .jb-cab { position: relative; width: 100%; aspect-ratio: 2 / 3; }
+  .jb-img { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; user-select: none;
+    filter: drop-shadow(0 30px 40px rgba(0,0,0,.7)); }
+  .jb-glass { position: absolute; left: 26.37%; top: 12.37%; width: 46.97%; height: 16.67%; z-index: 1; overflow: hidden;
+    border-radius: 50% 50% 0 0 / 94% 94% 0 0;
+    background: radial-gradient(120% 90% at 50% 100%, #3a2410 0%, #1a1007 45%, #070402 100%); }
+  .jb-window { position: absolute; inset: 0; perspective: 900px; perspective-origin: 50% 60%; }
+  .jb-rack { position: absolute; inset: 0; transform-style: preserve-3d; }
+  .jb-slot { position: absolute; left: 50%; top: 56%; width: 34%; aspect-ratio: 1; transform: translate(-50%, -50%);
+    transition: transform .45s cubic-bezier(.2,.7,.2,1), opacity .45s, filter .45s; cursor: pointer; }
+  .jb-slot img, .jb-slot .ph { position: relative; z-index: 2; width: 100%; height: 100%; object-fit: cover; border-radius: 2px; display: block; background: var(--panel);
+    box-shadow: 0 10px 22px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.12) inset; }
+  .jb-slot .ph { display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 34px; }
+  .jb-slot.center { z-index: 5; }
+  .jb-slot.center:hover img, .jb-slot.center:hover .ph { box-shadow: 0 10px 22px rgba(0,0,0,.7), 0 0 0 2px #ffd27a; }
+  .jb-slot .disc { position: absolute; left: 50%; top: 50%; width: 96%; aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 50%; z-index: 1;
+    background-image: repeating-radial-gradient(circle, rgba(255,255,255,.05) 0 1px, transparent 1px 4px), radial-gradient(circle, #2b2b2e 0 18%, #0c0c0e 19% 100%);
+    opacity: 0; transition: transform .7s ease-in, opacity .2s; }
+  .jb-slot.center .disc { opacity: 1; transform: translate(-32%, -50%); }
+  .jb-slot.loading .disc { transform: translate(-50%, 90%) rotate(120deg); }
+  .jb-slot.loading img, .jb-slot.loading .ph { animation: jbDip .7s ease-in-out; }
+  @keyframes jbDip { 0% { transform: translateY(0); } 50% { transform: translateY(8px); } 100% { transform: translateY(0); } }
+  .jb-arrow { position: absolute; top: 58%; transform: translateY(-50%); z-index: 10; width: 28px; height: 28px; border-radius: 50%; padding: 0; font-size: 18px; line-height: 1;
+    background: rgba(20,12,6,.75); border: 1px solid rgba(255,220,160,.35); color: #ffe9b8; }
+  .jb-arrow.left { left: 4%; } .jb-arrow.right { right: 4%; }
+  .jb-arrow:hover { background: #ffd27a; color: #2a1608; }
+  /* Tira de título sobre el panel de papel: el disco elegido y su número. */
+  .jb-title { position: absolute; left: 28.42%; top: 33.40%; width: 43.65%; height: 6.38%; z-index: 3; display: flex; align-items: center; gap: 4%; padding: 0 3%;
+    color: #2a1a0b; font-size: 13px; line-height: 1.15; overflow: hidden; }
+  .jb-title .code { font-family: var(--mono); font-weight: 800; font-size: 20px; color: #b3122e; flex-shrink: 0; }
+  .jb-title .i { min-width: 0; flex: 1; }
+  .jb-title .i b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 14px; }
+  .jb-title .i span { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #1e4a8a; font-size: 12px; }
+  .jb-title .n { font-family: var(--mono); font-size: 11px; color: #6b5a3a; flex-shrink: 0; }
+  /* Selector en la franja de madera entre el panel y la rejilla. */
+  .jb-controls { position: absolute; left: 28.42%; top: 40.3%; width: 43.65%; height: 4.2%; z-index: 3; display: flex; align-items: center; gap: 2%; }
+  .jb-display { font-family: var(--mono); font-size: 13px; letter-spacing: .1em; color: #ff8a3c; background: #1a0d06; border: 1px solid #8a6a2a; border-radius: 4px; padding: 3px 6px; min-width: 52px; text-align: center; height: 100%;
+    display: flex; align-items: center; justify-content: center; text-shadow: 0 0 8px rgba(255,138,60,.7); box-shadow: inset 0 0 10px rgba(0,0,0,.8); }
+  .jb-keys { flex: 1; display: grid; grid-template-columns: repeat(10, 1fr); gap: 2px; height: 100%; }
+  .jb-keys button { padding: 0; font-size: 11px; font-weight: 700; border-radius: 3px; color: #2a1a0b; background: linear-gradient(180deg, #fffaf0, #d9c9a0); border: 1px solid #6b4a1f; box-shadow: 0 2px 0 #4a3010; }
+  .jb-keys button.lit { background: #ffd27a; box-shadow: 0 0 10px #ffd27a; }
+  .jb-keys button:active { transform: translateY(2px); box-shadow: none; }
+  .jb-go { width: 34px; height: 34px; border-radius: 50%; padding: 0; font-size: 14px; color: #2a1a0b; flex-shrink: 0;
+    background: radial-gradient(circle at 35% 30%, #fff6e0, #d9b56b 55%, #8a6a2a); border: 1px solid #4a3010; box-shadow: 0 2px 0 #4a3010, 0 4px 10px rgba(0,0,0,.5); }
+  .jb-go:hover { background: radial-gradient(circle at 35% 30%, #fff, #ffd27a 55%, #b8860b); }
+  .jb-go:active { transform: translateY(2px); box-shadow: 0 1px 0 #4a3010; }
+  .jb-caption { text-align: center; min-height: 40px; padding: 14px 0 0; }
+  .jb-caption b { font-size: 16px; }
+  .jb-caption .sub { color: var(--muted); font-size: 13px; }
+  .jb-now { text-align: center; color: var(--muted); font-size: 13px; padding: 2px 0 8px; }
+  .jb-now b { color: var(--text); }
+  .jb-now .lamp { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #3a3f4c; margin-right: 6px; vertical-align: middle; }
+  .jb-now .lamp.on { background: #ff5f6d; box-shadow: 0 0 8px #ff5f6d; }
+  /* ---- pletina de casete: las cintas de la colección ---- */
+  .deckview { width: 100%; max-width: 980px; margin: 0 auto; }
+  /* La estantería: cajas de casete de pie con la cinta delante. */
+  .dk-shelf { position: relative; height: 272px; perspective: 900px; perspective-origin: 50% 60%; overflow: hidden;
+    border-radius: 10px; background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(0,0,0,.35)); }
+  .dk-shelf::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 10px; background: linear-gradient(180deg, #2a2f3a, #14171d); border-top: 1px solid #3a4150; }
+  .dk-rack { position: absolute; inset: 0; transform-style: preserve-3d; }
+  .dk-item { position: absolute; left: 50%; bottom: 14px; width: 148px; height: 236px; transform-origin: 50% 100%;
+    transition: transform .45s cubic-bezier(.2,.7,.2,1), opacity .45s, filter .45s; cursor: pointer; }
+  .dk-item.sel { z-index: 5; }
+  /* La caja y la cinta son fotos (deck/case.png, deck/tape.png) con la
+     cartulina y la etiqueta abiertas en transparente: la carátula va detrás,
+     en el hueco medido por tools/cabinet. La caja, de pie; los bujes de la
+     cinta (deck/hub.png) van aparte para poder girarlos. */
+  .case { position: absolute; left: 0; top: 0; width: 100%; aspect-ratio: 687 / 1024; filter: drop-shadow(0 10px 18px rgba(0,0,0,.65)); }
+  .case .tpl, .tape .tpl { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; user-select: none; }
+  .case .card { position: absolute; left: 18.78%; top: 14.55%; width: 62.74%; height: 71.78%; overflow: hidden; background: #e9e2cf; z-index: 1; }
+  .case .card .art, .tape .label .art { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .case .card .art.none { display: flex; align-items: center; justify-content: center; color: #8b93a7; font-size: 26px; background: #2a2d36; }
+  .tape { position: absolute; aspect-ratio: 1024 / 687; filter: drop-shadow(0 8px 14px rgba(0,0,0,.65)); }
+  .tape .label { position: absolute; left: 13.57%; top: 18.34%; width: 73.05%; height: 49.49%; background: #d9cfb5; overflow: hidden; z-index: 1; }
+  .tape .label .name { position: absolute; left: 0; right: 0; bottom: 0; height: 19%; background: rgba(233,226,207,.92); color: #1e1a14; font-size: 7px; line-height: 1.2; padding: 0 5%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; }
+  .tape .hub { position: absolute; top: 47.6%; width: 14.06%; aspect-ratio: 1; transform: translate(-50%, -50%); z-index: 3; pointer-events: none; }
+  .tape .hub.l { left: 30.21%; } .tape .hub.r { left: 69.89%; }
+  .tape.playing .hub { animation: dkReel 1.6s linear infinite; }
+  .tape.playing.paused .hub { animation-play-state: paused; }
+  @keyframes dkReel { to { transform: translate(-50%, -50%) rotate(360deg); } }
+  .dk-item .tape { left: 50%; bottom: 0; width: 132px; transform: translateX(-50%) rotate(-2deg); transition: transform .4s, opacity .3s; }
+  .dk-item.sel .tape { transform: translateX(-50%) translateY(-4px) rotate(0); }
+  .dk-item.loading .tape { transform: translateX(-50%) translateY(120px) rotate(0); opacity: 0; }
+  .dk-arrow { position: absolute; top: 45%; transform: translateY(-50%); z-index: 10; width: 30px; height: 30px; border-radius: 50%; padding: 0; font-size: 18px; line-height: 1;
+    background: rgba(20,23,29,.8); border: 1px solid var(--line); color: var(--text); }
+  .dk-arrow.left { left: 8px; } .dk-arrow.right { right: 8px; }
+  .dk-arrow:hover { background: var(--accent); color: #0b0e14; }
+  .dk-caption { text-align: center; min-height: 34px; padding: 8px 0 4px; }
+  .dk-caption b { font-size: 15px; } .dk-caption .sub { color: var(--muted); font-size: 13px; }
+  /* Encuadre a mano de la carátula en la cartulina (se guarda por disco). */
+  .dk-crop { display: flex; gap: 18px; align-items: center; justify-content: center; padding: 8px 0 12px; }
+  .dk-crop-case { flex: 0 0 auto; width: 240px; height: 358px; position: relative; }
+  .dk-crop-case .case { cursor: grab; }
+  .dk-crop-case .case:active { cursor: grabbing; }
+  .dk-crop-case .card { touch-action: none; }
+  .dk-crop-case .card .art { position: absolute; max-width: none; width: auto; height: auto; object-fit: unset; user-select: none; -webkit-user-drag: none; }
+  .dk-crop-side { max-width: 340px; display: flex; flex-direction: column; gap: 8px; }
+  .dk-crop-side .hint { color: var(--muted); font-size: 13px; margin: 0; }
+  .dk-crop-side label { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
+  .dk-crop-side input[type=range] { flex: 1; accent-color: var(--accent); }
+  /* La pletina: foto con el hueco semitransparente; detrás, la cinta. */
+  .dk-unit { position: relative; width: 100%; aspect-ratio: 2172 / 724; margin-top: 6px; }
+  .dk-img { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; user-select: none; filter: drop-shadow(0 18px 24px rgba(0,0,0,.6)); }
+  .dk-well { position: absolute; left: 10.36%; top: 20.72%; width: 28.78%; height: 41.44%; z-index: 1; background: radial-gradient(80% 80% at 50% 40%, #1e1f24, #08090b); overflow: hidden; }
+  .dk-well .tape { left: 50%; top: 50%; width: 68%; transform: translate(-50%, -160%); transition: transform .8s cubic-bezier(.2,.8,.2,1); }
+  .dk-well .tape.in { transform: translate(-50%, -50%); }
+  .dk-door { position: absolute; left: 10.36%; top: 20.72%; width: 28.78%; height: 41.44%; z-index: 3; pointer-events: none;
+    background: linear-gradient(115deg, rgba(255,255,255,.16) 0%, rgba(255,255,255,.04) 35%, rgba(255,255,255,0) 60%); opacity: 0; transition: opacity .6s; }
+  .dk-door.closed { opacity: 1; }
+  .dk-counter { position: absolute; left: 45.3%; top: 20.6%; width: 4.6%; height: 7.2%; z-index: 3; display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: clamp(9px, 1.5vw, 17px); letter-spacing: .12em; color: #f3f0e8; background: #050506; text-shadow: 0 0 4px rgba(255,255,255,.4); }
+  .dk-vu { position: absolute; top: 23.4%; width: 14%; height: 21.8%; z-index: 3; pointer-events: none; }
+  #dkVu1 { left: 58.1%; } #dkVu2 { left: 76.1%; }
+  .dk-vu i { position: absolute; left: 50%; bottom: 4%; width: 2px; height: 86%; margin-left: -1px; background: linear-gradient(180deg, #ff8a3c, #ffd0a0 70%, #fff); transform-origin: 50% 100%; transform: rotate(-42deg); transition: transform .08s linear; box-shadow: 0 0 3px rgba(255,140,60,.7); }
+  .dk-key { position: absolute; top: 70.4%; height: 9.2%; z-index: 3; background: transparent; border: 0; border-radius: 3px; cursor: pointer; }
+  .dk-key:hover { background: rgba(110,231,183,.12); box-shadow: 0 0 0 1px rgba(110,231,183,.5) inset; }
+  .dk-key.lit { box-shadow: 0 0 0 1px var(--accent) inset; background: rgba(110,231,183,.08); }
+  #dkRew { left: 8.9%; width: 6.3%; } #dkPlay { left: 15.4%; width: 6.1%; } #dkStop { left: 21.6%; width: 6.2%; } #dkFwd { left: 27.9%; width: 6.1%; } #dkEject { left: 34.2%; width: 6.2%; }
+  .dk-now { text-align: center; color: var(--muted); font-size: 13px; padding: 10px 0 8px; }
+  .dk-now b { color: var(--text); }
+  .dk-now .lamp { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #3a3f4c; margin-right: 6px; vertical-align: middle; }
+  .dk-now .lamp.on { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+  /* ---- gramófono: los vinilos de favoritos ---- */
+  /* La estantería: fundas (foto gramo/sleeve.png con el cartón abierto: la
+     carátula va detrás) con el disco asomando por la derecha. */
+  .gramoview { width: 100%; max-width: 980px; margin: 0 auto; }
+  .gr-shelf { height: 232px; }
+  .gr-item { position: absolute; left: 50%; bottom: 16px; width: 190px; aspect-ratio: 848 / 660; transform-origin: 50% 100%;
+    transition: transform .45s cubic-bezier(.2,.7,.2,1), opacity .45s, filter .45s; cursor: pointer; filter: drop-shadow(0 10px 18px rgba(0,0,0,.65)); }
+  .gr-item.sel { z-index: 5; }
+  .gr-item .tpl { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; user-select: none; }
+  .gr-item .card { position: absolute; left: 0.94%; top: 1.21%; width: 80.17%; height: 97.42%; overflow: hidden; background: #e9e2cf; z-index: 1; }
+  .gr-item .card .art { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .gr-item .card .art.none { display: flex; align-items: center; justify-content: center; color: #8b93a7; font-size: 30px; background: #2a2d36; }
+  /* El disco que sale de la funda al ponerlo: se desliza por la derecha y cae. */
+  .gr-item .out { position: absolute; left: 4%; top: 1.5%; width: 74%; aspect-ratio: 1; z-index: 0; transition: transform .7s cubic-bezier(.4,0,.6,1), opacity .5s; } /* cabe entero detrás del cartón (la funda es más ancha que alta) */
+  .gr-item.loading .out { transform: translateX(105%) translateY(120px) rotate(40deg); opacity: 0; }
+  /* La máquina: foto en picado; el plato es una elipse medida por
+     tools/cabinet (centro y semiejes), y el disco es un cuadrado abatido
+     con rotateX para que encaje en ella; dentro, gira. El brazo de la foto
+     descansa fuera del plato, así que el disco no lo tapa. */
+  .gr-unit { position: relative; width: 100%; max-width: 820px; aspect-ratio: 1024 / 572; margin: 4px auto 0; }
+  .gr-img { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; user-select: none; filter: drop-shadow(0 22px 26px rgba(0,0,0,.6)); }
+  .gr-platter { position: absolute; left: 53.66%; top: 51.57%; width: 23.14%; aspect-ratio: 1; z-index: 2; transform: translate(-50%, -50%) rotateX(60.1deg); pointer-events: none; }
+  .gr-spin { position: absolute; inset: 0; }
+  .gr-spin.playing { animation: grSpin 1.1s linear infinite; }
+  .gr-spin.playing.paused { animation-play-state: paused; }
+  @keyframes grSpin { to { transform: rotate(360deg); } }
+  /* El disco: foto gramo/record.png con la etiqueta abierta; la carátula, detrás, redonda. */
+  .record { position: absolute; inset: 0; }
+  .record .tpl { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; user-select: none; }
+  .record .label { position: absolute; left: 50%; top: 50%; width: 35%; aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 50%; overflow: hidden; background: #d9cfb5; z-index: 1; }
+  .record .label .art { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .gr-platter .record { inset: 3%; transition: transform .6s cubic-bezier(.2,.8,.2,1), opacity .4s; }
+  .gr-platter .record.drop { transform: scale(1.35) translateY(-40%); opacity: 0; }
+  /* ---- carrusel: las carátulas de favoritos y, en grande, la que suena ---- */
+  .carview { width: 100%; max-width: 980px; margin: 0 auto; }
+  .cv-shelf { height: 232px; background: none; } /* sin balda ni degradado: solo las carátulas */
+  .cv-shelf::after { display: none; }
+  .cv-item { position: absolute; left: 50%; bottom: 18px; width: 170px; aspect-ratio: 1; transform-origin: 50% 100%; border-radius: 6px; overflow: hidden; background: #2a2d36;
+    box-shadow: 0 12px 24px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.08) inset; transition: transform .45s cubic-bezier(.2,.7,.2,1), opacity .45s, filter .45s; cursor: pointer; }
+  .cv-item .art { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .cv-item .art.none { display: flex; align-items: center; justify-content: center; color: #8b93a7; font-size: 34px; }
+  .cv-item.sel { z-index: 5; box-shadow: 0 16px 30px rgba(0,0,0,.7), 0 0 0 2px var(--accent); }
+  .cv-item.playing::after { content: "▶"; position: absolute; right: 8px; bottom: 6px; color: var(--accent); font-size: 12px; text-shadow: 0 0 6px #000; }
+  /* La grande: la carátula del disco que suena, con un latido suave con el audio. */
+  .cv-now { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 14px 0 8px; }
+  .cv-big { width: min(420px, 60vw); aspect-ratio: 1; border-radius: 12px; overflow: hidden; background: #1a1d24;
+    box-shadow: 0 30px 60px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.08) inset; transition: transform .12s ease-out; will-change: transform; }
+  .cv-big .art { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .cv-big .art.none { display: flex; align-items: center; justify-content: center; color: #8b93a7; font-size: 80px; }
+  .cv-big.idle { opacity: .55; filter: grayscale(.4); }
+  .cv-text { text-align: center; min-height: 44px; }
+  .cv-text b { display: block; font-size: 18px; }
+  .cv-text .sub { color: var(--muted); font-size: 13px; }
+  .cv-text .lamp { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #3a3f4c; margin-right: 6px; vertical-align: middle; }
+  .cv-text .lamp.on { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+  .seg button { background: transparent; color: var(--muted); border: 0; border-radius: 0; padding: 3px 10px; font-size: 14px; }
+  .seg button.active { background: var(--line); color: var(--text); }
+  /* cuadrícula de discos */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; }
+  .card { cursor: pointer; border-radius: 10px; padding: 8px; border: 1px solid transparent; position: relative; }
+  .card:hover { background: rgba(255,255,255,.03); border-color: var(--line); }
+  .card .thumb { width: 100%; aspect-ratio: 1; border-radius: 8px; background: var(--bg); border: 1px solid var(--line); object-fit: cover; display: block; }
+  .card .thumb.none { display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 28px; }
+  .card .title { font-size: 13px; margin-top: 8px; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .card .sub { font-size: 11px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .card .badge { position: absolute; top: 14px; right: 14px; font-size: 11px; padding: 2px 7px; border-radius: 10px; background: rgba(15,17,21,.85); }
+  .card .badge.ok, .card .badge.extra { color: var(--ok); } .card .badge.splittable, .card .badge.partial, .card .badge.single { color: var(--run); } .card .badge.mismatch, .card .badge.error { color: var(--bad); }
+  .card .badge.notfound { color: var(--muted); } .card .badge.analyzing, .card .badge.working { color: var(--run); animation: pulse 1.2s infinite; }
+  .card input.sel { position: absolute; top: 14px; left: 14px; }
+  /* cabecera del detalle */
+  .album-head { display: flex; gap: 18px; align-items: flex-start; }
+  .album-head .cover, .cover-box { width: 160px; height: 160px; }
+  .cover-box { position: relative; flex-shrink: 0; border-radius: 8px; background: var(--bg); border: 1px solid var(--line); overflow: hidden; }
+  .icon-row { margin-top: 10px; align-items: center; } .icon-row img { width: 48px; height: 48px; }
+  .cover-box img { width: 100%; height: 100%; border: 0; }
+  .cover-ph { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 40px; }
+  .album-head h3 { margin: 0 0 4px; font-size: 18px; }
+  .album-head .facts { color: var(--muted); font-size: 13px; }
+  td.missing { color: var(--bad); font-style: italic; }
+  .src { font-size: 10px; padding: 1px 6px; border-radius: 8px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+  .src.musicbrainz { color: #c084fc; } .src.deezer { color: #a78bfa; } .src.bandcamp { color: #60a5fa; } .src.discogs { color: #f59e0b; }
+  .mini { width: 56px; height: 56px; object-fit: cover; border-radius: 4px; background: var(--bg); display: block; }
+  .mini.none { display: flex; align-items: center; justify-content: center; color: var(--muted); border: 1px solid var(--line); }
+  td.thumbcell { width: 60px; padding: 3px 6px; }
+  .relcover { width: 96px; height: 96px; object-fit: cover; border-radius: 6px; background: var(--bg); flex-shrink: 0; }
+  .empty.warn { color: var(--run); }
+  a.weblink { color: var(--accent); }
+  .dgroup { margin-bottom: 14px; }
+  .suser { border-top: 1px solid var(--line); padding: 8px 0; }
+  .suser:first-child { border-top: 0; }
+  .suser .uhead { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 13px; }
+  .suser .uhead b { font-family: var(--mono); font-size: 12px; }
+  .sfolder { margin: 6px 0 0 14px; }
+  .sfolder .fhead { display: flex; gap: 8px; align-items: center; color: var(--muted); font-size: 12px; }
+  .sfolder table { font-size: 12px; } .sfolder td { padding: 2px 6px; border: 0; }
+  .slot.free { color: var(--ok); } .slot.busy { color: var(--run); }
+  input[type=password] { background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; font: inherit; }
+  .dgroup .dhead { display: flex; gap: 12px; align-items: center; margin-bottom: 8px; }
+  .dgroup td.keep { white-space: nowrap; }
+  .miss { padding: 8px 0; border-top: 1px solid var(--line); }
+  .miss:first-child { border-top: 0; }
+  .mhead { margin-bottom: 4px; }
+  .cand { display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--text); padding: 2px 0; }
+  .cand .num { font-family: var(--mono); font-size: 12px; white-space: nowrap; }
+  .origin { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+  .ohead { display: flex; gap: 12px; align-items: center; margin-bottom: 6px; }
+  .ocover { width: 56px; height: 56px; border-radius: 6px; object-fit: cover; background: var(--bg); border: 1px solid var(--line); flex-shrink: 0; }
+  .ocover.none { display: flex; align-items: center; justify-content: center; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <div class="top">
+    <h1><img class="logo" src="logo.png" alt="" draggable="false">Trovador <span class="ver" id="appVer" title="versión"></span></h1>
+    <span class="spacer"></span>
+    <div class="tools" id="tools">
+      <span class="dot"></span><span id="toolsMsg">Comprobando herramientas...</span>
+      <span class="bar" id="toolsBar" hidden><i></i></span>
+      <span class="versions" id="toolsVer"></span>
+      <button class="ghost" id="retryTools" hidden>Reintentar</button>
+      <button class="ghost" id="updateYtdlp" hidden title="yt-dlp -U">Actualizar yt-dlp</button>
+    </div>
+  </div>
+
+  <nav class="tabs">
+    <button class="active" data-tab="downloads">Descargas</button>
+    <button data-tab="library">Biblioteca</button>
+    <button data-tab="soulseek">Soulseek</button>
+    <button data-tab="player">Reproductor</button>
+  </nav>
+
+  <!-- ======================= DESCARGAS ======================= -->
+  <section class="tab active" id="tab-downloads">
+    <div class="panel">
+      <textarea id="urls" placeholder="Pega aquí enlaces de YouTube, YouTube Music o Bandcamp: vídeos, playlists o álbumes. Uno por línea." spellcheck="false"></textarea>
+      <div class="row">
+        <label>Formato
+          <select id="format">
+            <option value="mp3">mp3</option><option value="m4a">m4a</option>
+            <option value="opus">opus</option><option value="flac">flac</option>
+          </select>
+        </label>
+        <label>Calidad
+          <select id="quality">
+            <option value="0">mejor</option><option value="192K">192 kbps</option><option value="128K">128 kbps</option>
+          </select>
+        </label>
+        <span class="spacer"></span>
+        <span class="err" id="err"></span>
+        <span class="meta"><kbd>Ctrl</kbd>+<kbd>Enter</kbd></span>
+        <button id="go" disabled>Descargar</button>
+      </div>
+      <div class="row dest">
+        <label>Guardar en</label>
+        <span class="path" id="outDirLabel" title=""></span>
+        <button class="ghost" id="chooseDir">Cambiar…</button>
+        <button class="ghost" id="openDir">Abrir</button>
+      </div>
+    </div>
+
+    <h2>Ajustes <span class="spacer"></span><button class="ghost" id="toggleSettings">mostrar</button></h2>
+    <div class="panel" id="settings" hidden>
+      <div class="row first">
+        <label>Descargas en paralelo
+          <select id="workers">
+            <option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option>
+          </select>
+        </label>
+      <div class="row">
+        <label>Token de Discogs</label>
+        <input type="text" id="discogsToken" placeholder="opcional: discogs.com → Settings → Developers → Generate token" spellcheck="false">
+        <button class="ghost" id="saveDiscogs">guardar</button>
+      </div>
+      <div class="row"><span class="meta">Con token, las búsquedas de la Biblioteca consultan también Discogs (demos, cintas, tiradas pequeñas). Sin él: MusicBrainz, Deezer y Bandcamp.</span></div>
+      <div class="row">
+        <label><input type="checkbox" id="folderIcons"> Iconos de carpeta en el Explorador</label>
+        <span class="meta">Al aplicar carátula o etiquetas, la carpeta del disco pasa a verse en el Explorador como lo que es (CD, vinilo, cinta o funda) con su carátula; las carpetas de artista, con su logo o foto. Deja un desktop.ini y un folder.ico ocultos dentro; se puede quitar desde la ficha del disco.</span>
+      </div>
+        <span class="spacer"></span>
+        <span class="meta" id="settingsMsg"></span>
+      </div>
+    </div>
+
+    <h2>Trabajos</h2>
+    <div class="panel" id="jobs"><p class="empty">Nada por ahora.</p></div>
+
+    <h2>Descargas recientes <span class="spacer"></span><button class="ghost" id="openDir2">Abrir carpeta</button></h2>
+    <div class="panel"><ul class="files" id="files"><li class="empty">Carpeta vacía.</li></ul></div>
+  </section>
+
+  <!-- ======================= BIBLIOTECA ======================= -->
+  <section class="tab" id="tab-library">
+    <div id="libList">
+    <div class="panel">
+      <div class="row first">
+        <label>Carpeta</label>
+        <span class="path" id="libRoot" title=""></span>
+        <button class="ghost" id="libChoose">Cambiar…</button>
+        <button class="ghost" id="libRefresh" title="Volver a leer la carpeta">Releer</button>
+        <button class="ghost" id="libSelAll">marcar todos</button>
+        <button class="ghost" id="libDupes" title="Detectar carpetas repetidas del mismo disco, comparar su integridad y dejar una sola">duplicados</button>
+        <button class="ghost" id="libIcons" title="Poner icono de carpeta del Explorador a todos los discos de esta carpeta, a cualquier profundidad (CD, vinilo, cinta o funda, con su carátula), y a las carpetas de artista (logo o foto). Los que ya lo tienen al día se saltan.">iconos Explorador</button>
+        <button class="ghost" id="libRename" title="Poner a cada carpeta de disco el nombre que le toca (dentro de la carpeta de su artista, el título a secas; suelta, «Artista - Álbum (Año)»): con los discos marcados, o con todos si no marcas ninguno. Antes de tocar nada muestra el cambio de cada uno y puedes desmarcar los que no quieras.">renombrar</button>
+        <button class="ghost" id="libOrganize" title="Meter cada disco marcado en la carpeta de su artista (Colección › Artista › Disco), creándola si no existe; en discos entre varios artistas manda el primero acreditado. Antes de mover, lo propone.">por artista</button>
+        <button class="ghost" id="libCarry" title="Copiar los discos marcados (o todos) a otra carpeta, por ejemplo el USB del coche: cada uno en su carpeta «Artista - Álbum», nombres aptos para FAT32, solo audio y carátulas, y si quieres convirtiendo a MP3 lo que no lo sea. Antes de copiar enseña el plan y si cabe.">llevarse…</button>
+        <span class="seg" id="libView"><button data-view="grid" title="miniaturas">▦</button><button data-view="list" title="lista">☰</button></span>
+        <span class="spacer"></span>
+        <button class="ghost" id="libAccept" disabled title="Confirmar de golpe las propuestas que cuadran (íntegras o separables)">Aceptar propuestas</button>
+        <button id="libAnalyze" disabled title="Analiza los discos marcados (con más de 50 discos empiezan desmarcados)">Analizar marcados</button>
+        <button class="ghost" id="libCancel" hidden>Cancelar</button>
+      </div>
+      <div class="row"><span class="err" id="libListErr"></span></div>
+      <div id="libAlbums" style="margin-top:12px"><p class="empty">Elige una carpeta con discos dentro.</p></div>
+      <div class="row apply" id="libApply" hidden>
+        <label><input type="checkbox" id="apCover" checked> carátula</label>
+        <label><input type="checkbox" id="apSplit" checked> separar</label>
+        <label><input type="checkbox" id="apTag" checked> etiquetar</label>
+        <span class="meta" id="libApplyHint"></span>
+        <span class="spacer"></span>
+        <span class="err" id="libBatchErr"></span>
+        <button id="libApplyBtn">Aplicar a marcados</button>
+      </div>
+    </div>
+    </div>
+
+    <div id="libDupesView" hidden>
+      <h2>Duplicados <span class="meta" id="dupMeta"></span><span class="spacer"></span><button class="ghost" id="dupBack">← volver a la lista</button></h2>
+      <div id="dupGroups"></div>
+    </div>
+
+    <div id="libRenameView" hidden>
+      <h2>Renombrar carpetas <span class="meta" id="renMeta"></span><span class="spacer"></span><button class="ghost" id="renBack">← volver a la lista</button></h2>
+      <div class="panel">
+        <div class="row first">
+          <span class="meta">Dentro de la carpeta de su artista cada disco se queda con el título a secas (el artista y el año ya están en la ruta y en las etiquetas); suelto, «Artista - Álbum (Año)». El nombre sale de su edición si el disco está analizado y, si no, de sus etiquetas. Desmarca las que no quieras tocar. Los ficheros de dentro no se tocan.</span>
+          <span class="spacer"></span>
+          <button class="ghost" id="renDropWarned" hidden>desmarcar las avisadas</button>
+          <button id="renApply" disabled>Renombrar</button>
+        </div>
+        <div id="renTable" style="margin-top:12px"></div>
+        <div class="row"><span class="err" id="renErr"></span></div>
+      </div>
+    </div>
+
+    <div id="libOrgView" hidden>
+      <h2>Ordenar por artista <span class="meta" id="orgMeta"></span><span class="spacer"></span><button class="ghost" id="orgBack">← volver a la lista</button></h2>
+      <div class="panel">
+        <div class="row first">
+          <label>Colección</label>
+          <span class="path" id="orgRoot" title=""></span>
+          <button class="ghost" id="orgChoose">Cambiar…</button>
+          <span class="meta">Las carpetas de artista se buscan y se crean aquí.</span>
+          <span class="spacer"></span>
+          <button id="orgApply" disabled>Mover</button>
+        </div>
+        <div id="orgTable" style="margin-top:12px"></div>
+        <div class="row"><span class="err" id="orgErr"></span></div>
+      </div>
+    </div>
+
+    <div id="libCarryView" hidden>
+      <h2>Llevarse discos <span class="meta" id="carryMeta"></span><span class="spacer"></span><button class="ghost" id="carryBack">← volver a la lista</button></h2>
+      <div class="panel">
+        <div class="row first">
+          <label>Destino</label>
+          <span class="path" id="carryDest" title="">(elige la carpeta: el USB del coche)</span>
+          <button class="ghost" id="carryChoose">Elegir…</button>
+          <span class="meta" id="carryFree"></span>
+        </div>
+        <div class="row">
+          <label>Carpetas</label>
+          <select class="small" id="carryLayout"><option value="flat">Artista - Álbum</option><option value="artist">Artista \ Álbum</option></select>
+          <label title="Los coches no suelen leer FLAC, Opus ni APE: lo que no sea MP3 se convierte al copiar (el original no se toca)"><input type="checkbox" id="carryConvert" checked> a MP3 lo que no lo sea</label>
+          <select class="small" id="carryFormat"><option value="mp3-320">320 kb/s</option><option value="mp3-v0">V0</option></select>
+          <label title="Los discos que ya estén en el destino (con todas sus pistas) se saltan"><input type="checkbox" id="carryReplace"> repetir los que ya estén</label>
+          <span class="spacer"></span>
+          <button id="carryApply" disabled>Copiar</button>
+          <button class="ghost" id="carryCancel" hidden>Cancelar</button>
+        </div>
+        <div class="tools" id="carryProgress" hidden style="margin-top:8px"><span class="bar" style="max-width:none"><i></i></span><span class="meta" id="carryProgressMsg"></span></div>
+        <div id="carryTable" style="margin-top:12px"></div>
+        <div class="row"><span class="err" id="carryErr"></span></div>
+      </div>
+    </div>
+
+    <div id="libBody" hidden>
+      <h2>Disco <span class="spacer"></span><button class="ghost" id="libBack">← volver a la lista</button></h2>
+      <div class="panel">
+        <div class="album-head">
+          <div class="cover-box"><img class="cover" id="libCover" alt="" hidden><span class="cover-ph" id="libCoverPh">♪</span></div>
+          <div style="flex:1;min-width:0">
+            <h3 id="libDetailName"></h3>
+            <div class="facts" id="libFacts"></div>
+            <div class="row"><span class="mono dim" id="libDetailPath"></span><span class="spacer"></span><button class="ghost" id="libOpenDir">abrir carpeta</button></div>
+            <div class="row icon-row">
+              <img id="iconPreview" alt="" hidden>
+              <label>Explorador
+                <select id="iconKind" title="Cómo se dibuja la carpeta en el Explorador de Windows">
+                  <option value="">automático</option><option value="cd">CD</option><option value="vinyl">Vinilo</option><option value="cassette">Cassette</option><option value="digital">Funda</option>
+                </select>
+              </label>
+              <button class="ghost" id="iconApply">crear icono</button>
+              <button class="ghost" id="iconRemove" hidden>quitar</button>
+              <span class="meta" id="iconMeta"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h2>Ficheros <span class="meta" id="libLocalSummary"></span></h2>
+      <div class="panel" id="libFiles"></div>
+
+      <h2>Edición <span class="meta">MusicBrainz · Deezer · Bandcamp · Discogs (con token)</span></h2>
+      <div class="panel">
+        <div class="row first">
+          <input type="text" id="libArtist" placeholder="Artista">
+          <input type="text" id="libAlbum" placeholder="Álbum (o URL de MusicBrainz)">
+          <input type="text" id="libSong" placeholder="Canción (busca en qué discos está)">
+          <button id="libSearch">Buscar</button>
+        </div>
+        <div class="row"><span class="spacer"></span><span class="err" id="libErr"></span></div>
+        <div id="libResults" style="margin-top:12px"></div>
+      </div>
+
+      <div class="panel" id="libCompare" hidden>
+        <div class="row first">
+          <img class="relcover" id="libRelCover" alt="" hidden>
+          <strong id="libRelTitle"></strong>
+          <span class="meta" id="libRelMeta"></span>
+          <span class="spacer"></span>
+          <button class="ghost" id="actCover">Carátula</button>
+          <button class="ghost" id="actSplit" title="Cortar el fichero largo con las duraciones oficiales">Separar pistas</button>
+          <button class="ghost" id="actTag" title="Renombrar y etiquetar según la edición">Etiquetar</button>
+          <button class="ghost" id="actComplete" title="Buscar las pistas que faltan (Soulseek y YouTube) y descargarlas a esta carpeta">Completar</button>
+          <button class="ghost" id="actUpgrade" title="Buscar este disco en Soulseek y sustituir tus pistas por versiones de mejor calidad (FLAC, más bitrate)">Mejorar en Soulseek</button>
+          <button id="actBuild" hidden title="Crear la carpeta del disco, llevar ahí esta pista curada y completar el resto">Crear álbum con esta pista</button>
+        </div>
+        <div id="libTable" style="margin-top:10px"></div>
+        <div class="summary" id="libSummary"></div>
+        <div id="libSplitPanel" hidden style="margin-top:10px">
+          <div class="row"><span class="meta">Marcas de tiempo: dónde empieza cada pista a partir de la segunda (una por línea, <span class="mono">m:ss</span> o <span class="mono">h:mm:ss</span>; vale pegar la lista de la descripción del vídeo, se ignora el texto).</span></div>
+          <div class="row">
+            <textarea id="splitMarks" rows="6" spellcheck="false" style="flex:1;min-width:260px;max-width:420px" placeholder="0:00 Introduction&#10;2:35 Mille Ans De Vengeance&#10;7:10 Une Bannière, Une Épée"></textarea>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <button class="ghost" id="splitDetect" title="Buscar los silencios entre canciones y proponer las marcas">Detectar silencios</button>
+              <button id="splitGo">Separar con estas marcas</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" id="libUpgrade" hidden>
+        <div class="row first">
+          <strong>Mejorar calidad desde Soulseek</strong>
+          <span class="meta" id="upMeta"></span>
+          <span class="spacer"></span>
+          <button id="upReplace">Sustituir marcadas</button>
+        </div>
+        <div id="upTable" style="margin-top:10px"></div>
+        <div class="summary" id="upSummary"></div>
+      </div>
+
+      <div class="panel" id="libComplete" hidden>
+        <div class="row first">
+          <strong>Completar el álbum</strong>
+          <span class="meta" id="cmpMeta"></span>
+          <span class="spacer"></span>
+          <button class="ghost" id="cmpOpen">abrir carpeta</button>
+          <button id="cmpDownload">Descargar marcadas</button>
+        </div>
+        <div id="cmpTable" style="margin-top:10px"></div>
+        <div class="summary" id="cmpSummary"></div>
+      </div>
+    </div>
+
+    <h2>Registro <span class="spacer"></span><button class="ghost" id="libClearLog">limpiar</button></h2>
+    <div class="lib-log" id="libLog"></div>
+  </section>
+
+  <!-- ======================= SOULSEEK ======================= -->
+  <section class="tab" id="tab-soulseek">
+    <div class="panel">
+      <div class="row first">
+        <span class="tools" id="slskStatus"><span class="dot"></span><span id="slskMsg">…</span></span>
+        <span class="spacer"></span>
+        <button class="ghost" id="slskSettingsBtn">ajustes</button>
+        <button id="slskInstall" hidden>Instalar motor (60 MB)</button>
+        <button id="slskConnect" hidden>Conectar</button>
+        <button class="ghost" id="slskDisconnect" hidden>Desconectar</button>
+      </div>
+      <div class="tools" id="slskProgress" hidden style="margin-top:8px"><span class="bar" style="max-width:none"><i></i></span><span class="meta" id="slskProgressMsg"></span></div>
+      <div id="slskSettings" hidden style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line)">
+        <div class="row first">
+          <label>Usuario Soulseek</label><input type="text" id="slskUser" style="max-width:200px" spellcheck="false">
+          <label>Contraseña</label><input type="password" id="slskPass" style="max-width:200px">
+          <label>Puerto</label><input type="text" id="slskPort" style="max-width:80px" spellcheck="false">
+        </div>
+        <div class="row">
+          <label>Compartir</label><span class="path" id="slskShare"></span><button class="ghost" id="slskShareBtn">Cambiar…</button>
+        </div>
+        <div class="row"><span class="meta">Las descargas caen en la carpeta de descargas de la app (una subcarpeta por disco) y aparecen en Biblioteca. Para que te descarguen a ti (y no te bloqueen), abre el puerto en el router.</span><span class="spacer"></span><button id="slskSave">Guardar</button></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="row first">
+        <input type="text" id="slskQuery" placeholder="artista, disco, canción…" spellcheck="false" disabled>
+        <select id="slskFilter"><option value="">todo</option><option value="album">solo carpetas (discos)</option><option value="flac">solo FLAC</option><option value="320">mp3 ≥ 320k</option></select>
+        <button id="slskSearch" disabled>Buscar</button>
+      </div>
+      <div class="row"><span class="meta" id="slskSearchMeta"></span><span class="spacer"></span><span class="err" id="slskErr"></span></div>
+      <div id="slskResults" style="margin-top:10px"></div>
+    </div>
+
+    <h2>Descargas <span class="meta" id="slskTransfersMeta"></span><span class="spacer"></span><button class="ghost" id="slskClearDone">quitar terminadas</button><button class="ghost" id="slskOpenDl">abrir carpeta</button></h2>
+    <div class="panel" id="slskTransfers"><p class="empty">Ninguna descarga.</p></div>
+  </section>
+
+  <section class="tab" id="tab-player">
+    <div class="player-head">
+      <button class="ghost" id="plFavs" title="Favoritos: la gramola (♥ en los discos para añadirlos)">♥ Favoritos</button>
+      <div class="player-search">
+        <input type="search" id="plFilter" placeholder="Buscar canción, artista o disco…" spellcheck="false" autocomplete="off">
+        <button class="ghost" id="plFilterClear" title="borrar (Esc)" hidden>✕</button>
+        <div id="plSongs" hidden></div>
+      </div>
+      <span class="meta" id="plMeta"></span>
+      <span class="spacer"></span>
+      <span class="meta">Colección:</span>
+      <span class="path small" id="plRoot" title=""></span>
+      <button class="ghost small" id="plChoose">Cambiar…</button>
+      <button class="ghost small" id="plRefresh" title="Volver a leer la colección">Releer</button>
+      <label class="meta" title="Formato al que se convierten las pistas con «convertir» (las que la ventana no sabe reproducir, o las que quieras pasar a otro formato). El original se aparta a _original.">convertir a
+        <select id="plConvFmt" class="small"><option value="mp3-320">MP3 320</option><option value="mp3-v0">MP3 V0</option><option value="flac">FLAC</option><option value="m4a-256">M4A 256</option></select>
+      </label>
+    </div>
+    <div class="player-body">
+        <div class="player-left">
+          <div id="plGrid" class="pgrid"><p class="empty">Leyendo la colección…</p></div>
+          <div id="plFavsView" hidden>
+            <div class="fv-switch" id="fvSwitch">
+              <button data-fav="jukebox" class="active" title="La gramola">Gramola</button>
+              <button data-fav="deck" title="La pletina de casete">Pletina</button>
+              <button data-fav="gramo" title="El gramófono">Gramófono</button>
+              <button data-fav="carousel" title="Carrusel de carátulas">Carrusel</button>
+            </div>
+          <div id="plJukebox" class="jukebox" hidden>
+            <div class="jb-cab">
+              <!-- detrás del mueble: lo que se ve por el cristal -->
+              <div class="jb-glass">
+                <div class="jb-window">
+                  <button class="jb-arrow left" id="jbPrev" title="anterior (←)">‹</button>
+                  <div class="jb-rack" id="jbRack"></div>
+                  <button class="jb-arrow right" id="jbNext" title="siguiente (→)">›</button>
+                </div>
+              </div>
+              <!-- el mueble (con el cristal transparente) -->
+              <img class="jb-img" src="jukebox/cabinet.png" alt="" draggable="false">
+              <!-- encima del mueble: la tira de título del panel y el selector -->
+              <div class="jb-title" id="jbTitle"></div>
+              <div class="jb-controls">
+                <div class="jb-display" id="jbDisplay">––</div>
+                <div class="jb-keys" id="jbKeys"></div>
+                <button class="jb-go" id="jbGo" title="Poner el disco elegido (Enter)">▶</button>
+              </div>
+            </div>
+            <div class="jb-caption" id="jbCaption"><p class="empty">Marca discos con ♥ y aparecerán aquí.</p></div>
+            <div class="jb-now" id="jbNow"></div>
+          </div>
+          <div id="plDeck" class="deckview" hidden>
+            <div class="dk-shelf">
+              <button class="dk-arrow left" id="dkPrev" title="anterior (←)">‹</button>
+              <div class="dk-rack" id="dkRack"></div>
+              <button class="dk-arrow right" id="dkNext" title="siguiente (→)">›</button>
+            </div>
+            <div class="dk-caption" id="dkCaption"><p class="empty">Ninguna cinta.</p></div>
+            <div class="dk-crop" id="dkCrop" hidden>
+              <div class="dk-crop-case"><div class="case"><div class="card" id="dkCropCard"><img class="art" id="dkCropImg" alt="" draggable="false"></div><img class="tpl" src="deck/case.png" alt="" draggable="false"></div></div>
+              <div class="dk-crop-side">
+                <b id="dkCropTitle"></b>
+                <p class="hint">Arrastra la portada para encuadrarla en la cartulina y acércala con la rueda o el deslizador. Lo que se vea ahí es lo que sale en la caja y en la etiqueta de la cinta.</p>
+                <label>Zoom <input type="range" id="dkCropZoom" min="0" max="100" value="0"></label>
+                <div class="row"><button class="small" id="dkCropSave">Guardar</button><button class="ghost small" id="dkCropAuto">Automático</button><button class="ghost small" id="dkCropCancel">Cancelar</button></div>
+              </div>
+            </div>
+            <div class="dk-unit">
+              <div class="dk-well" id="dkWell"></div>
+              <img class="dk-img" src="deck/deck.png" alt="" draggable="false">
+              <div class="dk-door" id="dkDoor"></div>
+              <div class="dk-counter" id="dkCounter">000</div>
+              <div class="dk-vu" id="dkVu1"><i></i></div>
+              <div class="dk-vu" id="dkVu2"><i></i></div>
+              <button class="dk-key" id="dkRew" title="anterior"></button>
+              <button class="dk-key" id="dkPlay" title="reproducir / pausa"></button>
+              <button class="dk-key" id="dkStop" title="parar"></button>
+              <button class="dk-key" id="dkFwd" title="siguiente"></button>
+              <button class="dk-key" id="dkEject" title="sacar la cinta"></button>
+            </div>
+            <div class="dk-now" id="dkNow"></div>
+          </div>
+          <div id="plGramo" class="gramoview" hidden>
+            <div class="dk-shelf gr-shelf">
+              <button class="dk-arrow left" id="grPrev" title="anterior (←)">‹</button>
+              <div class="dk-rack" id="grRack"></div>
+              <button class="dk-arrow right" id="grNext" title="siguiente (→)">›</button>
+            </div>
+            <div class="dk-caption" id="grCaption"><p class="empty">Ningún disco.</p></div>
+            <div class="gr-unit">
+              <img class="gr-img" src="gramo/gramophone.png" alt="" draggable="false">
+              <div class="gr-platter"><div class="gr-spin" id="grSpin"></div></div>
+            </div>
+            <div class="dk-now" id="grNow"></div>
+          </div>
+          <div id="plCarousel" class="carview" hidden>
+            <div class="dk-shelf cv-shelf">
+              <button class="dk-arrow left" id="cvPrev" title="anterior (←)">‹</button>
+              <div class="dk-rack" id="cvRack"></div>
+              <button class="dk-arrow right" id="cvNext" title="siguiente (→)">›</button>
+            </div>
+            <div class="dk-caption" id="cvCaption"><p class="empty">Ningún disco.</p></div>
+            <div class="cv-now">
+              <div class="cv-big" id="cvBig"><div class="art none">♪</div></div>
+              <div class="cv-text" id="cvText"></div>
+            </div>
+          </div>
+          </div>
+        </div>
+      <aside class="player-album panel" id="plAlbum" hidden></aside>
+      <aside class="player-right panel">
+        <div class="row first">
+          <strong>Lista de reproducción</strong>
+          <span class="spacer"></span>
+          <button class="ghost small" id="plShuffle" title="Barajar lo que hay en la lista">barajar</button>
+          <button class="ghost small" id="plClear">vaciar</button>
+        </div>
+        <div class="row"><span class="meta" id="plQueueMeta"></span></div>
+        <div id="plQueue" class="queue"></div>
+      </aside>
+    </div>
+  </section>
+</main>
+
+<div id="nowbar" hidden>
+  <img id="nbCover" alt="" hidden><div class="nb-ph" id="nbPh">♪</div>
+  <div class="nb-info"><div class="nb-title" id="nbTitle"></div><div class="nb-sub" id="nbSub"></div></div>
+  <div class="nb-ctl"><button class="ghost" id="nbPrev" title="anterior">⏮</button><button id="nbPlay" title="reproducir / pausa">▶</button><button class="ghost" id="nbNext" title="siguiente">⏭</button></div>
+  <span class="nb-time" id="nbCur">0:00</span><input type="range" id="nbSeek" min="0" max="1000" value="0"><span class="nb-time" id="nbDur">0:00</span>
+  <input type="range" id="nbVol" min="0" max="100" value="80" title="volumen">
+  <audio id="audio" preload="auto"></audio>
+</div>
+
+<script src="downloads.js"></script>
+<script src="library.js"></script>
+<script src="soulseek.js"></script>
+<script src="player.js"></script>
+</body>
+</html>

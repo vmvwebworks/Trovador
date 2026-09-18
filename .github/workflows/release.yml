@@ -1,0 +1,34 @@
+# Release portable: al empujar una etiqueta vX.Y.Z se compila Trovador en
+# Windows con esa versión dentro y se publica un zip en GitHub Releases.
+#
+#   git tag v1.0.0 && git push --tags
+name: release
+on:
+  push:
+    tags: ["v*"]
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Wails CLI
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+      - name: Compilar
+        shell: bash
+        run: |
+          VER="${GITHUB_REF_NAME#v}"
+          wails build -ldflags "-X main.version=$VER"
+          mkdir -p dist
+          cp build/bin/Trovador.exe dist/
+          cp README.md LICENSE dist/
+          cd dist && 7z a "../Trovador-$VER-windows-portable.zip" .
+      - name: Publicar
+        uses: softprops/action-gh-release@v2
+        with:
+          files: Trovador-*-windows-portable.zip
+          generate_release_notes: true

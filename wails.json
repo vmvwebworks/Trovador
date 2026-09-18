@@ -1,0 +1,11 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "Trovador",
+  "outputfilename": "Trovador",
+  "frontend:install": "",
+  "frontend:build": "",
+  "frontend:dev:watcher": "",
+  "frontend:dev:serverUrl": "auto",
+  "wailsjsdir": "./frontend",
+  "author": { "name": "teneb" }
+}

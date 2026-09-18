@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trovador</title>
+<meta name="description" content="Trovador: descarga, ordena, etiqueta y reproduce tu colección de música en Windows. Portable, gratis y de código abierto.">
+<link rel="icon" href="logo.png">
+<style>
+  :root { --bg: #0f1115; --panel: #171a21; --line: #262a34; --text: #e6e8ee; --muted: #8b93a7; --accent: #6ee7b7; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 system-ui, "Segoe UI", sans-serif; }
+  main { max-width: 960px; margin: 0 auto; padding: 40px 20px 60px; }
+  header { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+  header img { width: 84px; height: 84px; border-radius: 20px; }
+  h1 { font-size: 40px; margin: 0; letter-spacing: .01em; }
+  .tag { color: var(--muted); font-size: 18px; margin: 4px 0 0; }
+  .cta { margin: 28px 0 10px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+  .btn { display: inline-block; background: var(--accent); color: #062b1f; font-weight: 700; padding: 12px 22px; border-radius: 10px; text-decoration: none; }
+  .btn.ghost { background: transparent; color: var(--text); border: 1px solid var(--line); font-weight: 500; }
+  .note { color: var(--muted); font-size: 14px; }
+  section { margin-top: 44px; }
+  h2 { font-size: 22px; margin: 0 0 12px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+  .card b { display: block; margin-bottom: 4px; }
+  .card p { margin: 0; color: var(--muted); font-size: 14px; }
+  .shots { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .shots figure { margin: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .shots img { display: block; width: 100%; height: auto; }
+  .shots figcaption { padding: 8px 12px; color: var(--muted); font-size: 13px; }
+  .shots .tall { grid-row: span 2; }
+  ol { padding-left: 22px; color: var(--muted); }
+  ol li { margin: 6px 0; }
+  code { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; font-size: 14px; }
+  footer { margin-top: 50px; color: var(--muted); font-size: 14px; border-top: 1px solid var(--line); padding-top: 18px; }
+  a { color: var(--accent); }
+  @media (max-width: 640px) { .shots { grid-template-columns: 1fr; } .shots .tall { grid-row: auto; } h1 { font-size: 32px; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <img src="logo.png" alt="">
+    <div>
+      <h1>Trovador</h1>
+      <p class="tag">Tu colección de música, entera y bien puesta: la descarga, la ordena, la etiqueta y te la reproduce.</p>
+    </div>
+  </header>
+
+  <div class="cta">
+    <a class="btn" href="https://github.com/__REPO__/releases/latest">Descargar para Windows</a>
+    <a class="btn ghost" href="https://github.com/__REPO__">Código en GitHub</a>
+    <span class="note">Portable: un solo <code>Trovador.exe</code>, sin instalar. Windows 10/11.</span>
+  </div>
+
+  <section>
+    <h2>Qué hace</h2>
+    <div class="grid">
+      <div class="card"><b>Descarga</b><p>De YouTube, YouTube Music, Bandcamp y Soulseek. Discos enteros, troceados por capítulos, etiquetados y con carátula.</p></div>
+      <div class="card"><b>Identifica</b><p>Cruza cada carpeta con MusicBrainz, Deezer, Bandcamp y Discogs: pistas que faltan, orden, duraciones, edición.</p></div>
+      <div class="card"><b>Ordena</b><p>Renombra carpetas, las mete en la de su artista, detecta duplicados, separa discos en un solo fichero.</p></div>
+      <div class="card"><b>Etiqueta</b><p>Títulos, números, artista, año, carátula incrustada; y el formato de origen (CD, vinilo, cinta).</p></div>
+      <div class="card"><b>Se ve en el Explorador</b><p>Cada carpeta de disco con su icono: la carátula como CD, vinilo o cinta; los artistas con su logo o foto.</p></div>
+      <div class="card"><b>Reproduce</b><p>Reproductor con cola, búsqueda y favoritos en cuatro visualizaciones: gramola, pletina de casete, gramófono y carrusel.</p></div>
+      <div class="card"><b>Al coche</b><p>Copia discos a un USB con nombres aptos para FAT32 y, si quieres, todo a MP3.</p></div>
+      <div class="card"><b>Tuyo</b><p>Código abierto (MIT), sin cuentas ni telemetría. Las herramientas (yt-dlp, ffmpeg) se descargan de sus sitios oficiales.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Favoritos, a lo grande</h2>
+    <div class="shots">
+      <figure class="tall"><img src="img/gramola.jpg" alt="La gramola: una Wurlitzer con el carrusel de discos"><figcaption>La gramola: marcas el disco y el brazo lo pone.</figcaption></figure>
+      <figure><img src="img/pletina.jpg" alt="La pletina de casete con las cintas en la estantería"><figcaption>La pletina: cajas y cintas con la carátula, y vúmetros que siguen el audio.</figcaption></figure>
+      <figure><img src="img/gramofono.jpg" alt="El gramófono con el disco girando en el plato"><figcaption>El gramófono: el disco cae en el plato y gira.</figcaption></figure>
+      <figure><img src="img/carrusel.jpg" alt="El carrusel de carátulas con la que suena en grande"><figcaption>El carrusel: en grande, lo que suena.</figcaption></figure>
+    </div>
+  </section>
+
+  <section>
+    <h2>Cómo se usa</h2>
+    <ol>
+      <li>Descarga el zip y saca <code>Trovador.exe</code> a una carpeta tuya (por ejemplo <code>Documentos\Trovador</code>).</li>
+      <li>Ábrelo. La primera vez descarga yt-dlp, ffmpeg, deno y slskd (~230 MB) a <code>bin\</code>, junto al exe, desde sus repositorios oficiales.</li>
+      <li>En <b>Biblioteca</b>, elige la carpeta de tu música. En <b>Reproductor</b>, dale al play.</li>
+    </ol>
+    <p class="note">Tus ajustes, favoritos y la caché de carátulas viven en <code>%APPDATA%\Trovador</code>. Para actualizar, descarga el zip nuevo y sustituye el exe.</p>
+  </section>
+
+  <footer>
+    Trovador · <a href="https://github.com/__REPO__">GitHub</a> · licencia MIT · hecho con Go y Wails.
+  </footer>
+</main>
+</body>
+</html>
