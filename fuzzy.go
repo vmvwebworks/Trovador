@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"golang.org/x/text/runes"
 	"golang.org/x/text/transform"
@@ -22,9 +23,13 @@ import (
 // "Flögo de Bort (Demo)" -> "flogo de bort demo".
 func normalizeName(s string) string {
 	// NFD separa "ö" en "o" + diéresis; runes.Remove quita las marcas (Mn).
-	t := transform.Chain(norm.NFD, runes.Remove(runes.In(unicode.Mn)), norm.NFC)
-	if out, _, err := transform.String(t, s); err == nil {
-		s = out
+	// En texto ASCII no hay nada que quitar, y es lo más común: se ahorra la
+	// cadena de transformaciones, que es lo que más cuesta aquí.
+	if !isASCII(s) {
+		t := transform.Chain(norm.NFD, runes.Remove(runes.In(unicode.Mn)), norm.NFC)
+		if out, _, err := transform.String(t, s); err == nil {
+			s = out
+		}
 	}
 	s = strings.ToLower(s)
 	s = strings.NewReplacer("&", " and ", "+", " and ").Replace(s)
@@ -41,6 +46,15 @@ func normalizeName(s string) string {
 		}
 	}
 	return strings.TrimSpace(b.String())
+}
+
+func isASCII(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if s[i] >= utf8.RuneSelf {
+			return false
+		}
+	}
+	return true
 }
 
 // levenshtein: número mínimo de ediciones (insertar/borrar/sustituir) para
@@ -71,35 +85,107 @@ func levenshtein(a, b []rune) int {
 //   - contención (un nombre dentro del otro: "Endzeit Barbarossa" en
 //     "1941 Endzeit Barbarossa 2021").
 func similarity(a, b string) float64 {
-	na, nb := normalizeName(a), normalizeName(b)
-	if na == "" || nb == "" {
+	return similarityNorm(normalizeName(a), normalizeName(b))
+}
+
+// similarityNorm es similarity con los dos textos ya pasados por
+// normalizeName.
+func similarityNorm(na, nb string) float64 {
+	return similarityPrep(prepNorm(na), prepNorm(nb))
+}
+
+// normText es un texto normalizado con sus letras y palabras ya separadas,
+// para comparar muchos con muchos (duplicados) sin repetir ese trabajo.
+type normText struct {
+	s     string
+	r     []rune
+	words []string
+}
+
+func prepNorm(n string) normText { return normText{n, []rune(n), strings.Fields(n)} }
+
+// similarityPrep es similarity sobre textos preparados con prepNorm.
+func similarityPrep(a, b normText) float64 {
+	if a.s == "" || b.s == "" {
 		return 0
 	}
-	if na == nb {
+	if a.s == b.s {
 		return 1
 	}
-	ra, rb := []rune(na), []rune(nb)
-	longest := max(len(ra), len(rb))
-	ratio := 1 - float64(levenshtein(ra, rb))/float64(longest)
-
-	ta, tb := strings.Fields(na), strings.Fields(nb)
-	set := make(map[string]bool, len(ta))
-	for _, w := range ta {
-		set[w] = true
+	shortest, longest := min(len(a.r), len(b.r)), max(len(a.r), len(b.r))
+	ratio := 1 - float64(levenshtein(a.r, b.r))/float64(longest)
+	contain := 0.0
+	if strings.Contains(a.s, b.s) || strings.Contains(b.s, a.s) {
+		contain = float64(shortest) / float64(longest)
 	}
+	return max(ratio, jaccardWords(a.words, b.words), contain)
+}
+
+// similarAtLeast dice si similarityPrep(a, b) >= limit, sin calcular la
+// distancia de edición cuando no hace falta: la edición y la contención
+// nunca pasan de corta/larga (hay que añadir al menos la diferencia de
+// longitud), así que si eso y las palabras se quedan por debajo, no llega.
+func similarAtLeast(a, b normText, limit float64) bool {
+	if a.s == "" || b.s == "" {
+		return limit <= 0
+	}
+	if a.s == b.s || jaccardWords(a.words, b.words) >= limit {
+		return true
+	}
+	shortest, longest := min(len(a.r), len(b.r)), max(len(a.r), len(b.r))
+	if float64(shortest)/float64(longest) < limit {
+		return false
+	}
+	// Uno dentro del otro: la contención es corta/larga, que ya llega.
+	if strings.Contains(a.s, b.s) || strings.Contains(b.s, a.s) {
+		return true
+	}
+	// Queda la edición: 1 - d/larga >= limit. Se corta en cuanto d se pasa.
+	maxDist := int((1-limit)*float64(longest)) + 1
+	return 1-float64(levenshteinMax(a.r, b.r, maxDist))/float64(longest) >= limit
+}
+
+// levenshteinMax es levenshtein, pero deja de calcular en cuanto la distancia
+// pasa de maxDist (entonces devuelve maxDist+1): si una fila entera ya supera
+// el máximo, las siguientes también.
+func levenshteinMax(a, b []rune, maxDist int) int {
+	prev := make([]int, len(b)+1)
+	cur := make([]int, len(b)+1)
+	for j := range prev {
+		prev[j] = j
+	}
+	for i := 1; i <= len(a); i++ {
+		cur[0] = i
+		rowMin := i
+		for j := 1; j <= len(b); j++ {
+			cost := 1
+			if a[i-1] == b[j-1] {
+				cost = 0
+			}
+			cur[j] = min(prev[j]+1, cur[j-1]+1, prev[j-1]+cost)
+			rowMin = min(rowMin, cur[j])
+		}
+		if rowMin > maxDist {
+			return maxDist + 1
+		}
+		prev, cur = cur, prev
+	}
+	return min(prev[len(b)], maxDist+1)
+}
+
+// jaccardWords: palabras en común entre las dos listas, sobre el total.
+// Con listas tan cortas (títulos) recorrerlas es más rápido que un mapa.
+func jaccardWords(ta, tb []string) float64 {
 	inter := 0
 	for _, w := range tb {
-		if set[w] {
-			inter++
+		for _, v := range ta {
+			if v == w {
+				inter++
+				break
+			}
 		}
 	}
-	jaccard := float64(inter) / float64(len(ta)+len(tb)-inter)
-
-	contain := 0.0
-	if strings.Contains(na, nb) || strings.Contains(nb, na) {
-		contain = float64(min(len(ra), len(rb))) / float64(longest)
-	}
-	return max(ratio, jaccard, contain)
+	return float64(inter) / float64(len(ta)+len(tb)-inter)
 }
 
 var (

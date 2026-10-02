@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"os"
@@ -69,39 +70,17 @@ func (a *App) FindDuplicates(root string) ([]dupeGroup, error) {
 		items = append(items, named{al.Dir, card.Artist, album})
 	}
 
-	// Union-find sencillo: cada carpeta empieza en su grupo y se unen las
-	// parejas que se parecen.
-	parent := make([]int, len(items))
-	for i := range parent {
-		parent[i] = i
+	keys := make([][2]string, len(items))
+	for i, it := range items {
+		keys[i] = [2]string{it.artist, it.album}
 	}
-	var find func(int) int
-	find = func(i int) int {
-		for parent[i] != i {
-			parent[i] = parent[parent[i]]
-			i = parent[i]
-		}
-		return i
-	}
-	for i := 0; i < len(items); i++ {
-		for j := i + 1; j < len(items); j++ {
-			if sameAlbum(items[i].artist, items[i].album, items[j].artist, items[j].album) {
-				parent[find(i)] = find(j)
-			}
-		}
-	}
-	groupsIdx := map[int][]int{}
-	for i := range items {
-		r := find(i)
-		groupsIdx[r] = append(groupsIdx[r], i)
+	similar, err := groupSimilarAlbums(a.ctx, keys)
+	if err != nil {
+		return nil, err
 	}
 
 	var groups []dupeGroup
-	for _, idx := range groupsIdx {
-		if len(idx) < 2 {
-			continue
-		}
-		sort.Ints(idx)
+	for _, idx := range similar {
 		g := dupeGroup{Artist: items[idx[0]].artist, Album: items[idx[0]].album}
 		for _, i := range idx {
 			if g.Artist == "" {
@@ -167,7 +146,108 @@ func (a *App) FindDuplicates(root string) ([]dupeGroup, error) {
 	return groups, nil
 }
 
-// sameAlbum: dos carpetas parecen el mismo disco.
+// groupSimilarAlbums agrupa los discos (artista, álbum) que parecen el mismo,
+// con el criterio de sameAlbum: cada uno empieza en su grupo (union-find) y se
+// unen las parejas que se parecen. Devuelve los grupos de dos o más, con los
+// índices en orden.
+//
+// Comparar todos con todos son n²/2 parejas (2 millones con 2000 discos), así
+// que lo caro se hace una vez por disco y no por pareja: los nombres se
+// normalizan al principio, el parecido entre artistas se calcula una vez por
+// cada par de artistas distintos, y se mira primero el artista, que descarta
+// casi todas las parejas sin comparar los títulos.
+func groupSimilarAlbums(ctx context.Context, keys [][2]string) ([][]int, error) {
+	type prepared struct {
+		rawArtist, rawAlbum string
+		artist              normText
+		core                normText // albumCore con su propio artista, normalizado
+	}
+	items := make([]prepared, len(keys))
+	for i, k := range keys {
+		items[i] = prepared{
+			rawArtist: k[0], rawAlbum: k[1],
+			artist: prepNorm(normalizeName(k[0])),
+			core:   prepNorm(normalizeName(albumCore(k[1], k[0]))),
+		}
+	}
+	// coreWith: el título sin el artista delante. Si el de la otra carpeta es
+	// otro (y no vacío) hay que quitar cualquiera de los dos; se guarda por
+	// (disco, otro artista), que se repite mucho.
+	type coreKey struct {
+		i     int
+		other string
+	}
+	cores := map[coreKey]normText{}
+	coreWith := func(i int, other prepared) normText {
+		it := items[i]
+		if other.artist.s == "" || other.artist.s == it.artist.s {
+			return it.core
+		}
+		k := coreKey{i, other.rawArtist}
+		c, ok := cores[k]
+		if !ok {
+			c = prepNorm(normalizeName(albumCore(it.rawAlbum, it.rawArtist, other.rawArtist)))
+			cores[k] = c
+		}
+		return c
+	}
+	artistSim := map[[2]string]bool{} // ¿se parecen lo bastante dos artistas?
+
+	parent := make([]int, len(items))
+	for i := range parent {
+		parent[i] = i
+	}
+	find := func(i int) int {
+		for parent[i] != i {
+			parent[i] = parent[parent[i]]
+			i = parent[i]
+		}
+		return i
+	}
+	for i := range items {
+		if i%200 == 0 && ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		for j := i + 1; j < len(items); j++ {
+			if find(i) == find(j) {
+				continue // ya están en el mismo grupo: compararlos no cambia nada
+			}
+			a, b := items[i], items[j]
+			if a.rawArtist != "" && b.rawArtist != "" && (a.artist.s != b.artist.s || a.artist.s == "") {
+				k := [2]string{min(a.artist.s, b.artist.s), max(a.artist.s, b.artist.s)}
+				ok, seen := artistSim[k]
+				if !seen {
+					ok = similarAtLeast(a.artist, b.artist, 0.7)
+					artistSim[k] = ok
+				}
+				if !ok {
+					continue
+				}
+			}
+			if similarAtLeast(coreWith(i, b), coreWith(j, a), 0.85) {
+				parent[find(i)] = find(j)
+			}
+		}
+	}
+
+	byRoot := map[int][]int{}
+	for i := range items {
+		r := find(i)
+		byRoot[r] = append(byRoot[r], i)
+	}
+	var groups [][]int
+	for _, idx := range byRoot {
+		if len(idx) >= 2 {
+			groups = append(groups, idx) // ya en orden: i crece
+		}
+	}
+	sort.Slice(groups, func(i, j int) bool { return groups[i][0] < groups[j][0] })
+	return groups, nil
+}
+
+// sameAlbum: dos carpetas parecen el mismo disco. Es el criterio de
+// groupSimilarAlbums escrito para una sola pareja; los tests comprueban que
+// los dos agrupan igual.
 func sameAlbum(artistA, albumA, artistB, albumB string) bool {
 	// "Oliphant - Songs from the Crusades" y "Songs from the Crusades (1996)"
 	// son el mismo disco: se compara sin artista delante ni año detrás.
