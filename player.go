@@ -12,7 +12,9 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -34,9 +36,14 @@ var audioMIME = map[string]string{
 	".wma": "audio/x-ms-wma", ".ape": "audio/ape", ".wv": "audio/wavpack", ".aiff": "audio/aiff", ".aif": "audio/aiff", ".mpc": "audio/musepack",
 }
 
-// mediaHandler sirve /media?p=<ruta absoluta de un fichero de audio>.
+// mediaHandler sirve /media?p=<ruta absoluta de un fichero de audio> y
+// /thumb/<fichero> (las miniaturas de la caché de tarjetas).
 func (a *App) mediaHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if name, ok := strings.CutPrefix(r.URL.Path, "/thumb/"); ok {
+			serveThumb(w, r, name)
+			return
+		}
 		if r.URL.Path != "/media" {
 			http.NotFound(w, r)
 			return
@@ -52,6 +59,35 @@ func (a *App) mediaHandler() http.Handler {
 		w.Header().Set("Cache-Control", "no-store")
 		http.ServeFile(w, r, p) // gestiona Range, HEAD y Last-Modified
 	})
+}
+
+// Las miniaturas se sirven por URL y no metidas en la tarjeta como data URL:
+// con un par de miles de discos eran decenas de MB de base64 en cada carga de
+// la cuadrícula, y cada redibujo los volvía a copiar. Por URL el WebView las
+// guarda en su caché y solo pide las que se ven (loading="lazy").
+var thumbFile = regexp.MustCompile(`^[0-9a-f]{16}\.jpg$`)
+
+func thumbPath(file string) string { return filepath.Join(cacheDir(), "thumbs", file) }
+
+// thumbURL: la dirección de una miniatura de thumbs/. El fichero se llama
+// como la carpeta del disco, así que si cambia la carátula el nombre es el
+// mismo: la ?v= (su fecha) hace que el WebView no enseñe la vieja.
+func thumbURL(file string) (string, bool) {
+	info, err := os.Stat(thumbPath(file))
+	if err != nil {
+		return "", false
+	}
+	return "/thumb/" + file + "?v=" + strconv.FormatInt(info.ModTime().UnixNano(), 36), true
+}
+
+func serveThumb(w http.ResponseWriter, r *http.Request, name string) {
+	if !thumbFile.MatchString(name) || cacheDir() == "" {
+		http.NotFound(w, r)
+		return
+	}
+	w.Header().Set("Content-Type", "image/jpeg")
+	w.Header().Set("Cache-Control", "max-age=31536000, immutable") // la ?v= cambia si cambia
+	http.ServeFile(w, r, thumbPath(name))
 }
 
 // ---- la colección para el reproductor ---------------------------------------
@@ -292,11 +328,11 @@ func cachedCard(dir string) (albumCard, bool) {
 	}
 	card := albumCard{Artist: rec.Artist, Album: rec.Album, Media: rec.Media, MBID: rec.MBID, TagArtist: rec.TagArtist, TagAlbum: rec.TagAlbum, Date: rec.Date}
 	if rec.Thumb != "" {
-		data, err := os.ReadFile(filepath.Join(cacheDir(), "thumbs", rec.Thumb))
-		if err != nil {
+		u, ok := thumbURL(rec.Thumb)
+		if !ok {
 			return albumCard{}, false // miniatura perdida: se recalcula
 		}
-		card.Cover = "data:image/jpeg;base64," + base64.StdEncoding.EncodeToString(data)
+		card.Cover = u
 	}
 	cards.mu.Lock()
 	cards.entries[dir] = cardEntry{modTime: mod, card: card}
@@ -315,9 +351,10 @@ func rememberCard(dir, mod string, card albumCard, thumb string) {
 }
 
 // thumbnail hace la miniatura (200 px, JPEG) de una carátula, la guarda en
-// thumbs\ y devuelve (nombre de fichero, data URL). Si la imagen no se
-// puede decodificar, se devuelve la original tal cual sin guardar nada.
-func thumbnail(ctx context.Context, dir string, data []byte) (file, dataURL string) {
+// thumbs\ y devuelve (nombre de fichero, URL para la ventana). Si la imagen
+// no se puede decodificar, o no hay dónde guardarla, se devuelve como data
+// URL sin guardar nada.
+func thumbnail(ctx context.Context, dir string, data []byte) (file, url string) {
 	img, _, err := image.Decode(bytes.NewReader(data))
 	if err != nil {
 		if raw, err2 := ffmpegToPNG(ctx, data); err2 == nil {
@@ -345,7 +382,13 @@ func thumbnail(ctx context.Context, dir string, data []byte) (file, dataURL stri
 	file = hex.EncodeToString(sum[:8]) + ".jpg"
 	if cache := cacheDir(); cache != "" {
 		_ = os.MkdirAll(filepath.Join(cache, "thumbs"), 0o755)
-		_ = os.WriteFile(filepath.Join(cache, "thumbs", file), buf.Bytes(), 0o644)
+		if os.WriteFile(thumbPath(file), buf.Bytes(), 0o644) == nil {
+			if u, ok := thumbURL(file); ok {
+				return file, u
+			}
+		}
 	}
+	// Sin guardar: el nombre va igual al registro, y al no encontrar el
+	// fichero la próxima vez se vuelve a hacer.
 	return file, "data:image/jpeg;base64," + base64.StdEncoding.EncodeToString(buf.Bytes())
 }

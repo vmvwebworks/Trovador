@@ -262,15 +262,19 @@ $('#plChoose').onclick = async () => {
 const words = () => pl.filter.split(/\s+/).filter(Boolean);
 const matches = (hay, ws) => ws.every(w => hay.includes(w));
 
+// Se espera a que se deje de teclear un momento: con una colección grande,
+// redibujar la cuadrícula con cada letra hace que escribir vaya a saltos.
+let filterTimer;
 $('#plFilter').oninput = () => {
   pl.filter = $('#plFilter').value.trim().toLowerCase();
   $('#plFilterClear').hidden = !pl.filter;
-  renderPlayerGrid(); renderSongs();
+  clearTimeout(filterTimer);
+  filterTimer = setTimeout(() => { renderPlayerGrid(); renderSongs(); }, 120);
 };
 $('#plFilter').onkeydown = e => { if (e.key === 'Escape') { clearFilter(); } };
 $('#plFilter').onfocus = () => renderSongs();
 $('#plFilterClear').onclick = clearFilter;
-function clearFilter() { $('#plFilter').value = ''; pl.filter = ''; $('#plFilterClear').hidden = true; renderPlayerGrid(); renderSongs(); }
+function clearFilter() { clearTimeout(filterTimer); $('#plFilter').value = ''; pl.filter = ''; $('#plFilterClear').hidden = true; renderPlayerGrid(); renderSongs(); }
 // El desplegable de canciones se cierra al pulsar fuera.
 document.addEventListener('mousedown', e => { if (!e.target.closest('.player-search')) $('#plSongs').hidden = true; });
 

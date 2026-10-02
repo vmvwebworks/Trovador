@@ -102,8 +102,16 @@ func TestCardCache(t *testing.T) {
 		t.Fatalf("PlayerAlbums: %v %+v", err, albums)
 	}
 	card, err := app.AlbumCard(a)
-	if err != nil || card.Artist != "Oliphant" || !strings.HasPrefix(card.Cover, "data:image/jpeg") || len(card.Cover) > 60000 {
-		t.Fatalf("tarjeta: %v artista=%q cover=%d bytes", err, card.Artist, len(card.Cover))
+	if err != nil || card.Artist != "Oliphant" || !strings.HasPrefix(card.Cover, "/thumb/") {
+		t.Fatalf("tarjeta: %v artista=%q cover=%q", err, card.Artist, card.Cover)
+	}
+	// La miniatura se sirve por /thumb/; lo que no es una miniatura, no.
+	for url, want := range map[string]int{card.Cover: http.StatusOK, "/thumb/../cards.json": http.StatusNotFound} {
+		rec := httptest.NewRecorder()
+		app.mediaHandler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, url, nil))
+		if rec.Code != want || (want == http.StatusOK && rec.Header().Get("Content-Type") != "image/jpeg") {
+			t.Errorf("%s: %d %s", url, rec.Code, rec.Header().Get("Content-Type"))
+		}
 	}
 	if _, err := app.AlbumCard(b); err != nil {
 		t.Fatal(err)

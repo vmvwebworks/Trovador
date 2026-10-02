@@ -18,9 +18,16 @@ const lib = {
 };
 
 const fmtDur = s => { s = Math.round(s || 0); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+// El registro se añade por trozos (reescribir todo el texto en cada línea es
+// cuadrático en un lote largo) y guarda solo las últimas líneas.
+const LOG_LINES = 2000;
 const libLog = line => {
   const el = $('#libLog');
-  el.textContent += (el.textContent ? '\n' : '') + line;
+  el.append((el.firstChild ? '\n' : '') + line);
+  if (el.childNodes.length > LOG_LINES) {
+    el.firstChild.remove();
+    el.firstChild.data = el.firstChild.data.replace(/^\n/, '');
+  }
   el.scrollTop = el.scrollHeight;
 };
 window.runtime.EventsOn('lib', libLog);
@@ -82,37 +89,47 @@ function renderAlbums() {
   const typed = {};
   box.querySelectorAll('tr.cands').forEach(tr => { const i = tr.querySelector('input.mbid'); if (i && i.value) typed[tr.dataset.dir] = i.value; });
   const firstRender = !box.querySelector('table') && lib.albums.length <= 50;
-  const relLabel = r => `${srcTag(r.source)} <b>${esc(r.artist)} — ${esc(r.title)}</b> (${esc((r.date || '').slice(0, 4))}${r.country ? ', ' + esc(r.country) : ''}${r.format ? ', ' + esc(r.format) : ''})`;
 
   box.innerHTML = `<table><thead><tr>
       <th><input type="checkbox" id="selAll" title="marcar todos"></th>
       <th>Disco</th><th class="num">Ficheros</th><th class="num">Duración</th><th>Carátula</th><th>Estado</th><th>Edición</th>
-    </tr></thead><tbody>${lib.albums.map(a => {
-      const proposal = a.release && !a.confirmed;
-      const stateCell = `<span class="state ${a.state}">${stateLabel[a.state] || a.state}</span>` +
-        (a.confirmed ? ' <span class="ok" title="edición confirmada">✓</span>' : proposal ? ' <span class="dim">(propuesta)</span>' : '');
-      const editionCell = (a.release ? relLabel(a.release) + '<br>' : '') + esc(a.message || '') +
-        (a.candidates && a.candidates.length || a.state === 'notfound' ? `<br><span class="links">` +
-          (proposal ? `<button class="ghost act" data-act="confirm">Confirmar</button> ` : '') +
-          (a.candidates && a.candidates.length ? `<button class="ghost act" data-act="cands">${lib.expanded.has(a.dir) ? 'ocultar' : 'ver'} ${a.candidates.length} candidata(s)</button> ` : '') +
-          `<button class="ghost act" data-act="web" title="Abrir en el navegador">navegador</button></span>` : '');
-      const cands = lib.expanded.has(a.dir) ? `<tr class="cands" data-dir="${esc(a.dir)}"><td></td><td colspan="6">${renderCandidates(a)}</td></tr>` : '';
-      return `<tr data-dir="${esc(a.dir)}">
-        <td><input type="checkbox" class="sel" data-dir="${esc(a.dir)}" ${firstRender || checked.has(a.dir) ? 'checked' : ''}></td>
-        <td class="name" title="abrir detalle">${esc(a.name)}</td>
-        <td class="num">${a.files}</td>
-        <td class="num">${a.total ? fmtDur(a.total) : ''}</td>
-        <td class="${a.hasCover ? 'ok' : 'dim'}">${a.hasCover ? 'sí' : 'no'}</td>
-        <td>${stateCell}</td>
-        <td class="msg">${editionCell}</td>
-      </tr>${cands}`;
-    }).join('')}</tbody></table>`;
+    </tr></thead><tbody>${lib.albums.map(a => albumRowHTML(a, firstRender || checked.has(a.dir))).join('')}</tbody></table>`;
 
-  box.querySelectorAll('td.name').forEach(td => td.onclick = () => openDetail(td.parentElement.dataset.dir));
-  box.querySelectorAll('button.act').forEach(b => b.onclick = () => rowAction(b.closest('tr').dataset.dir, b.dataset.act, b));
+  bindRows(box);
   box.querySelectorAll('tr.cands').forEach(tr => { const i = tr.querySelector('input.mbid'); if (i && typed[tr.dataset.dir]) i.value = typed[tr.dataset.dir]; });
   $('#selAll').onclick = e => box.querySelectorAll('input.sel').forEach(i => i.checked = e.target.checked);
   updateApplyHint();
+}
+
+const relLabel = r => `${srcTag(r.source)} <b>${esc(r.artist)} — ${esc(r.title)}</b> (${esc((r.date || '').slice(0, 4))}${r.country ? ', ' + esc(r.country) : ''}${r.format ? ', ' + esc(r.format) : ''})`;
+
+// Fila de la vista de lista (y la de candidatas debajo, si está desplegada).
+function albumRowHTML(a, checked) {
+  const proposal = a.release && !a.confirmed;
+  const stateCell = `<span class="state ${a.state}">${stateLabel[a.state] || a.state}</span>` +
+    (a.confirmed ? ' <span class="ok" title="edición confirmada">✓</span>' : proposal ? ' <span class="dim">(propuesta)</span>' : '');
+  const editionCell = (a.release ? relLabel(a.release) + '<br>' : '') + esc(a.message || '') +
+    (a.candidates && a.candidates.length || a.state === 'notfound' ? `<br><span class="links">` +
+      (proposal ? `<button class="ghost act" data-act="confirm">Confirmar</button> ` : '') +
+      (a.candidates && a.candidates.length ? `<button class="ghost act" data-act="cands">${lib.expanded.has(a.dir) ? 'ocultar' : 'ver'} ${a.candidates.length} candidata(s)</button> ` : '') +
+      `<button class="ghost act" data-act="web" title="Abrir en el navegador">navegador</button></span>` : '');
+  const cands = lib.expanded.has(a.dir) ? `<tr class="cands" data-dir="${esc(a.dir)}"><td></td><td colspan="6">${renderCandidates(a)}</td></tr>` : '';
+  return `<tr data-dir="${esc(a.dir)}">
+    <td><input type="checkbox" class="sel" data-dir="${esc(a.dir)}" ${checked ? 'checked' : ''}></td>
+    <td class="name" title="abrir detalle">${esc(a.name)}</td>
+    <td class="num">${a.files}</td>
+    <td class="num">${a.total ? fmtDur(a.total) : ''}</td>
+    <td class="${a.hasCover ? 'ok' : 'dim'}">${a.hasCover ? 'sí' : 'no'}</td>
+    <td>${stateCell}</td>
+    <td class="msg">${editionCell}</td>
+  </tr>${cands}`;
+}
+
+// Enlaza los clics de las filas que haya dentro de el (la tabla entera o una
+// fila recién cambiada).
+function bindRows(el) {
+  el.querySelectorAll('td.name').forEach(td => td.onclick = () => openDetail(td.parentElement.dataset.dir));
+  el.querySelectorAll('button.act').forEach(b => b.onclick = () => rowAction(b.closest('tr').dataset.dir, b.dataset.act, b));
 }
 
 // Vista de miniaturas: una tarjeta por disco con su carátula. Las carátulas
@@ -121,21 +138,28 @@ function renderAlbums() {
 function renderGrid(box) {
   const checked = new Set([...box.querySelectorAll('input.sel:checked')].map(i => i.dataset.dir));
   const firstRender = !box.querySelector('.grid') && lib.albums.length <= 50;
-  box.innerHTML = `<div class="grid">${lib.albums.map(a => {
-    const card = lib.cards[a.dir];
-    const cover = card ? card.cover : undefined;
-    const state = a.state && a.state !== 'pending' ? `<span class="badge ${a.state}">${stateLabel[a.state] || a.state}${a.confirmed ? ' ✓' : ''}</span>` : '';
-    return `<div class="card" data-dir="${esc(a.dir)}" title="${esc(a.message || a.name)}">
-      <input type="checkbox" class="sel" data-dir="${esc(a.dir)}" ${firstRender || checked.has(a.dir) ? 'checked' : ''}>
-      ${cover ? `<img class="thumb" src="${cover}" alt="">` : `<div class="thumb none">${cover === '' ? '♪' : '…'}</div>`}
-      ${state}
-      <div class="title">${cardTitle(a, card)}</div>
-      <div class="sub">${cardSub(a, card)}</div>
-    </div>`;
-  }).join('')}</div>`;
-  box.querySelectorAll('.card').forEach(c => c.onclick = e => { if (e.target.tagName !== 'INPUT') openDetail(c.dataset.dir); });
+  box.innerHTML = `<div class="grid">${lib.albums.map(a => albumCardHTML(a, firstRender || checked.has(a.dir))).join('')}</div>`;
+  box.querySelectorAll('.card').forEach(bindCard);
   updateApplyHint();
   loadCards();
+}
+
+function bindCard(c) {
+  c.onclick = e => { if (e.target.tagName !== 'INPUT') openDetail(c.dataset.dir); };
+}
+
+// Tarjeta de la vista de miniaturas.
+function albumCardHTML(a, checked) {
+  const card = lib.cards[a.dir];
+  const cover = card ? card.cover : undefined;
+  const state = a.state && a.state !== 'pending' ? `<span class="badge ${a.state}">${stateLabel[a.state] || a.state}${a.confirmed ? ' ✓' : ''}</span>` : '';
+  return `<div class="card" data-dir="${esc(a.dir)}" title="${esc(a.message || a.name)}">
+    <input type="checkbox" class="sel" data-dir="${esc(a.dir)}" ${checked ? 'checked' : ''}>
+    ${cover ? `<img class="thumb" src="${cover}" alt="">` : `<div class="thumb none">${cover === '' ? '♪' : '…'}</div>`}
+    ${state}
+    <div class="title">${cardTitle(a, card)}</div>
+    <div class="sub">${cardSub(a, card)}</div>
+  </div>`;
 }
 
 // Título de la tarjeta: la edición confirmada/propuesta si la hay; si no, lo
@@ -254,9 +278,41 @@ window.runtime.EventsOn('album', info => {
   // Tras aplicar cambios la carátula puede haber cambiado: olvidar la cacheada.
   if (i >= 0 && lib.albums[i].state === 'working' && info.state !== 'working') delete lib.cards[info.dir];
   if (i >= 0) lib.albums[i] = info; else lib.albums.push(info);
-  renderAlbums();
+  // Durante un análisis en lote llegan dos o tres por disco: redibujar la
+  // lista entera cada vez (con todas sus carátulas) congela la ventana con
+  // bibliotecas grandes. Se cambia solo lo de este disco.
+  if (i < 0 || !updateAlbumElement(info)) renderAlbums();
   if (lib.dir === info.dir && !['analyzing', 'working'].includes(info.state)) refreshDetail();
 });
+// Sustituye la tarjeta o fila de un disco por la de su estado nuevo. Devuelve
+// false si no está pintado (y entonces hay que redibujar todo).
+function updateAlbumElement(a) {
+  const box = $('#libAlbums');
+  const sel = `[data-dir="${CSS.escape(a.dir)}"]`;
+  const old = box.querySelector((lib.view === 'grid' ? '.card' : 'tr:not(.cands)') + sel);
+  if (!old) return false;
+  const checked = old.querySelector('input.sel')?.checked;
+  const tpl = document.createElement(lib.view === 'grid' ? 'div' : 'tbody');
+  if (lib.view === 'grid') {
+    tpl.innerHTML = albumCardHTML(a, checked);
+    bindCard(tpl.firstElementChild);
+    old.replaceWith(tpl.firstElementChild);
+    if (lib.cards[a.dir] === undefined) loadCards();
+  } else {
+    const typed = box.querySelector('tr.cands' + sel + ' input.mbid')?.value;
+    box.querySelector('tr.cands' + sel)?.remove();
+    tpl.innerHTML = albumRowHTML(a, checked);
+    bindRows(tpl);
+    const typedBox = tpl.querySelector('input.mbid');
+    if (typedBox && typed) typedBox.value = typed;
+    old.replaceWith(...tpl.children);
+  }
+  $('#libAnalyze').disabled = !lib.albums.length || lib.running;
+  $('#libApply').hidden = !lib.albums.some(x => x.release);
+  updateApplyHint();
+  return true;
+}
+
 window.runtime.EventsOn('batch', b => {
   lib.running = b.running;
   $('#libAnalyze').disabled = b.running || !lib.albums.length;
