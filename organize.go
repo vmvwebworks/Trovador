@@ -149,10 +149,7 @@ func (a *App) OrganizeApply(items []organizeItem) (int, error) {
 			a.libLog("%s: %v", it.Name, err)
 			continue
 		}
-		fixIconAttrs(it.Target) // por si fue copia y no renombrado
-		a.batch.move(it.Dir, it.Target)
-		favMove(it.Dir, it.Target)
-		a.emit("album-moved", map[string]string{"from": it.Dir, "to": it.Target})
+		a.moved(it.Dir, it.Target) // también si fue copia y no renombrado
 		a.libLog("%s  ->  %s", it.Name, it.Target)
 		touched[it.ArtistDir] = true
 		moved++

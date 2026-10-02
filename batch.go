@@ -566,9 +566,7 @@ func (a *App) applyOne(ctx context.Context, dir string, doCover, doSplit, doTag 
 			return
 		}
 		removeIfEmptyAlbum(dir)
-		a.batch.move(dir, res.Dir)
-		favMove(dir, res.Dir)
-		a.emit("album-moved", map[string]string{"from": dir, "to": res.Dir})
+		a.moved(dir, res.Dir)
 		dir = res.Dir
 		doTag = false
 	}
@@ -588,7 +586,7 @@ func (a *App) applyOne(ctx context.Context, dir string, doCover, doSplit, doTag 
 			dir = newDir
 		}
 	}
-	a.autoIcon(dir, rel.Format)
+	a.albumChanged(dir, rel.Format)
 
 	// Volver a mirar la carpeta para reflejar el resultado.
 	scan, err := a.ScanFolder(dir)

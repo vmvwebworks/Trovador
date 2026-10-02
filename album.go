@@ -161,7 +161,7 @@ func (a *App) BuildAlbum(srcDir, key string, fileIdx []int, move bool) (buildRes
 	}
 
 	res.Missing, err = a.missingTracks(dir, rel)
-	a.autoIcon(dir, rel.Release.Format)
+	a.albumChanged(dir, rel.Release.Format)
 	return res, err
 }
 
@@ -352,11 +352,8 @@ func (a *App) renameAlbumTo(dir, name string) (string, error) {
 	if err := os.Rename(dir, target); err != nil {
 		return dir, fmt.Errorf("no pude renombrar la carpeta (¿algún fichero abierto?): %w", err)
 	}
-	a.batch.move(dir, target)
-	fixIconAttrs(target) // en Linux el icono va por ruta: se vuelve a apuntar
+	a.moved(dir, target)
 	a.libLog("carpeta renombrada: %s  ->  %s", filepath.Base(dir), filepath.Base(target))
-	favMove(dir, target)
-	a.emit("album-moved", map[string]string{"from": dir, "to": target})
 	return target, nil
 }
 

@@ -89,7 +89,7 @@ func (a *App) SetCoverCrop(dir string, on bool, c coverCrop) error {
 	return crops.save()
 }
 
-// cropMove: la carpeta de un disco ha cambiado de ruta.
+// cropMove: el encuadre de una carpeta pasa a otra. Lo llama App.moved.
 func cropMove(from, to string) {
 	crops.mu.Lock()
 	defer crops.mu.Unlock()

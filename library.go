@@ -252,7 +252,7 @@ func (a *App) FetchCover(dir, key string) (int, error) {
 	}
 	a.libLog("Guardada %s (de %s)", dest, src)
 	n, err := a.embedCoverAll(dir, dest)
-	a.autoIcon(dir, d.Release.Format)
+	a.albumChanged(dir, d.Release.Format)
 	return n, err
 }
 
@@ -373,6 +373,6 @@ func (a *App) TagFolder(dir, key string) (int, error) {
 		}
 	}
 	a.libLog("Etiquetadas %d pistas", n)
-	a.autoIcon(dir, rel.Release.Format)
+	a.albumChanged(dir, rel.Release.Format)
 	return n, nil
 }

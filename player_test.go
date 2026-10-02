@@ -201,9 +201,9 @@ func TestCoverCrops(t *testing.T) {
 	if m, _ := app.CoverCrops(); m[a] != c {
 		t.Fatalf("no se guardó: %v", m)
 	}
-	// Sigue a la carpeta al moverla (favMove lo arrastra), y se quita.
+	// Sigue a la carpeta al moverla, y se quita.
 	moved := filepath.Join(filepath.Dir(a), "Disco (2001)")
-	favMove(a, moved)
+	cropMove(a, moved)
 	if m, _ := app.CoverCrops(); m[moved] != c || len(m) != 1 {
 		t.Fatalf("tras mover: %v", m)
 	}

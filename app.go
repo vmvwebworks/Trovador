@@ -278,3 +278,27 @@ func parseURLText(text string) []string {
 	}
 	return dedupe(urls)
 }
+
+// ---- cambios en los discos ----------------------------------------------
+//
+// Varias partes guardan cosas por carpeta de disco (el análisis del lote, los
+// favoritos, el encuadre de la carátula, el icono). Cuando un disco cambia o
+// se mueve, se avisa aquí y no a cada una por separado: así no se olvida
+// ninguna en algún sitio, y quien mueve carpetas no tiene que conocerlas.
+
+// moved: la carpeta de un disco ha cambiado de ruta (renombrada, ordenada en
+// la de su artista, creada a partir de una pista suelta). Todo lo que se
+// guarda por carpeta la sigue, y la ventana se entera.
+func (a *App) moved(from, to string) {
+	a.batch.move(from, to)
+	favMove(from, to)
+	cropMove(from, to)
+	fixIconAttrs(to) // en Linux el icono va por ruta: se vuelve a apuntar
+	a.emit("album-moved", map[string]string{"from": from, "to": to})
+}
+
+// albumChanged: se ha cambiado el contenido de un disco (etiquetas, carátula,
+// pistas). Lo que depende de él se pone al día: hoy, el icono de la carpeta.
+func (a *App) albumChanged(dir, format string) {
+	a.autoIcon(dir, format)
+}

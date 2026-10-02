@@ -11,7 +11,7 @@ import (
 // Favoritos del reproductor: discos marcados con ♥, que salen en la
 // gramola. Se guardan en %APPDATA%\Trovador\favorites.json como lista
 // de carpetas; si una carpeta se renombra o se mueve desde la app, el
-// favorito la sigue (favMove).
+// favorito la sigue (App.moved).
 
 type favStore struct {
 	mu     sync.Mutex
@@ -88,15 +88,21 @@ func (a *App) SetFavorite(dir string, on bool) ([]string, error) {
 	return a.Favorites()
 }
 
-// favMove: la carpeta de un disco ha cambiado de ruta (también el encuadre
-// de la carátula, si lo tiene).
+// favMove: el favorito de una carpeta pasa a otra (la misma, movida; o la
+// copia que se queda al fusionar duplicados). Si la otra ya era favorita,
+// queda una sola vez. Lo llama App.moved.
 func favMove(from, to string) {
-	cropMove(from, to)
 	favs.mu.Lock()
 	defer favs.mu.Unlock()
 	favs.load()
-	if i := favs.index(from); i >= 0 {
-		favs.dirs[i] = filepath.Clean(to)
-		_ = favs.save()
+	i := favs.index(from)
+	if i < 0 {
+		return
 	}
+	if favs.index(to) >= 0 {
+		favs.dirs = append(favs.dirs[:i], favs.dirs[i+1:]...)
+	} else {
+		favs.dirs[i] = filepath.Clean(to)
+	}
+	_ = favs.save()
 }

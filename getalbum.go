@@ -41,7 +41,7 @@ func (a *App) CreateAlbum(key string) (buildResult, error) {
 	}
 	res := buildResult{Dir: dir}
 	res.Missing, err = a.missingTracks(dir, rel)
-	a.autoIcon(dir, rel.Release.Format)
+	a.albumChanged(dir, rel.Release.Format)
 	return res, err
 }
 

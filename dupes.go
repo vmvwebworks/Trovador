@@ -354,9 +354,11 @@ func (a *App) MergeDuplicates(keep string, others []string) (mergeResult, error)
 			keepScan.Files = append(keepScan.Files, f)
 			res.Moved++
 		}
+		coverTaken := false
 		if keepScan.Cover == "" && scan.Cover != "" {
 			if err := os.Rename(scan.Cover, filepath.Join(keep, "cover.jpg")); err == nil {
 				keepScan.Cover = filepath.Join(keep, "cover.jpg")
+				coverTaken = true
 				a.libLog("carátula traída de %s", filepath.Base(other))
 			}
 		}
@@ -369,7 +371,16 @@ func (a *App) MergeDuplicates(keep string, others []string) (mergeResult, error)
 			a.libLog("aviso: no pude apartar %s: %v", filepath.Base(other), err)
 			continue
 		}
+		// Apartar una copia no es moverla (no se avisa a la ventana como con
+		// moved): su análisis va con ella a _duplicados, pero el favorito pasa
+		// a la copia que se queda, y el encuadre va con la carátula.
 		a.batch.move(other, dest)
+		favMove(other, keep)
+		if coverTaken {
+			cropMove(other, keep)
+		} else {
+			cropMove(other, dest)
+		}
 		res.Archived = append(res.Archived, dest)
 		a.libLog("apartada a _duplicados: %s", filepath.Base(other))
 	}
