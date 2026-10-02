@@ -30,7 +30,7 @@ type App struct {
 	libRoot  string // carpeta que se está mirando en la Biblioteca (ListAlbums)
 	tools    toolsState
 	batch    batchState   // Biblioteca en lote (batch.go)
-	icons    iconRun      // lote de iconos de carpeta (folder_icons.go)
+	icons    iconRun      // lote de iconos de carpeta (icons_folder.go)
 	lengths  lengthsCache // duraciones tomadas de otra fuente (lengths.go)
 }
 

@@ -542,21 +542,21 @@ album.go            crear álbum (carpeta + ficheros curados), completar pistas 
 dupes.go            duplicados: agrupar copias del mismo disco, comparar integridad, fusionar
 rename.go           renombrar carpetas en lote: proponer el nombre de cada carpeta (según cuelgue de la del artista o no) y aplicarlo tras confirmar
 organize.go         ordenar por artista: proponer Colección\Artista\Disco y mover, creando la carpeta del artista
-artists.go          iconos de las carpetas de artista: logo (TheAudioDB, Metal Archives) o foto, o mosaico de carátulas
+icons_artist.go     iconos de las carpetas de artista: logo (TheAudioDB, Metal Archives) o foto, o mosaico de carátulas
 icons.go            dibujo de los iconos (CD, vinilo, cinta, funda) con la carátula y codificación .ico
-folder_icons.go     icono de carpeta: desktop.ini, atributos, tipo automático o fijado
+icons_folder.go     icono de carpeta: desktop.ini, atributos, tipo automático o fijado
 icons_windows.go    atributos de fichero, aviso al Explorador y espacio libre (solo Windows)
 icons_other.go      lo mismo fuera de Windows: icono para Nautilus/Nemo/Caja (gio) y Dolphin (.directory)
 tools_windows.go    de dónde se descargan las herramientas en Windows (tools_linux.go, en Linux)
 soulseek.go         Soulseek: instalar/arrancar/parar slskd y su API (buscar, descargar, transferencias)
-complete_slsk.go    completar un álbum desde Soulseek: localizar pistas que faltan y descargarlas curadas
-upgrade_slsk.go     mejorar calidad desde Soulseek: detectar versiones mejores y sustituir
+soulseek_complete.go completar un álbum desde Soulseek: localizar pistas que faltan y descargarlas curadas
+soulseek_upgrade.go mejorar calidad desde Soulseek: detectar versiones mejores y sustituir
 config.go           ajustes persistentes (JSON en la carpeta de datos) y carpeta de música por defecto
 exec_windows.go     oculta la consola de los subprocesos y abre carpetas en el Explorador (exec_other.go: xdg-open)
 player.go           reproductor: servir el audio por HTTP con rangos, discos de la colección, caché de tarjetas y miniaturas
 convert.go          convertir pistas de formato con ffmpeg (etiquetas y carátula intactas; original a _original)
-favorites.go        favoritos del reproductor (favorites.json), siguen a la carpeta si se mueve
-crops.go            encuadre manual de la carátula en la cartulina de la pletina (crops.json), sigue a la carpeta
+player_favorites.go favoritos del reproductor (favorites.json), siguen a la carpeta si se mueve
+player_crops.go     encuadre manual de la carátula en la cartulina de la pletina (crops.json), sigue a la carpeta
 carry.go            llevarse discos a otra carpeta (USB del coche): nombres FAT32, solo audio y carátulas, a MP3 si se pide
 tools/cabinet       prepara las fotos: gramola (cristal y panel), pletina (hueco), caja y cinta, gramófono (plato), disco y funda
 frontend/index.html la interfaz (pestañas Descargas y Biblioteca)
