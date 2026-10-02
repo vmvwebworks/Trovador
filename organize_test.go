@@ -8,6 +8,7 @@ package main
 
 import (
 	"context"
+	"music_picker/internal/tools"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -41,7 +42,7 @@ func TestOrganize(t *testing.T) {
 	mk := func(rel, artist, album string) string {
 		dir := filepath.Join(root, rel)
 		os.MkdirAll(dir, 0o755)
-		gen := exec.CommandContext(context.Background(), toolPath("ffmpeg.exe"), "-v", "error", "-y",
+		gen := exec.CommandContext(context.Background(), tools.Path("ffmpeg.exe"), "-v", "error", "-y",
 			"-f", "lavfi", "-i", "sine=frequency=440:sample_rate=44100", "-t", "1",
 			"-metadata", "artist="+artist, "-metadata", "album_artist="+artist, "-metadata", "album="+album,
 			"-c:a", "libmp3lame", "-q:a", "9", filepath.Join(dir, "01 - Pista.mp3"))

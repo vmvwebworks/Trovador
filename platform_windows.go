@@ -12,18 +12,9 @@ import (
 
 // Lo que se hace distinto en Windows y en Linux, con el mismo nombre en los
 // dos ficheros (platform_other.go es el de Linux): el resto del programa
-// llama a hideWindow, openDir, pathKey o freeSpace sin preguntar el sistema.
+// llama a openDir, pathKey o freeSpace sin preguntar el sistema (ocultar la
+// consola de los subprocesos está en internal/tools, HideWindow).
 // Los iconos de carpeta tienen los suyos en icons_windows.go/icons_other.go.
-
-// hideWindow evita que cada yt-dlp/ffmpeg abra una ventana de consola
-// negra al lanzarse desde una app gráfica. Este fichero solo se compila en
-// Windows gracias a la etiqueta de build de la primera línea.
-func hideWindow(cmd *exec.Cmd) {
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		HideWindow:    true,
-		CreationFlags: 0x08000000, // CREATE_NO_WINDOW
-	}
-}
 
 // openDir abre una carpeta en el Explorador.
 func openDir(dir string) error { return exec.Command("explorer", dir).Start() }

@@ -1,11 +1,11 @@
 //go:build linux
 
-package main
+package tools
 
 // En Linux: yt-dlp en su versión autónoma (no necesita Python), deno en
 // zip y ffmpeg el del sistema (sudo apt install ffmpeg), que se enlaza en
-// bin/. Los nombres llevan .exe como en Windows; toolPath se lo quita.
-var toolDefs = []toolDef{
+// bin/. Los nombres llevan .exe como en Windows; Path se lo quita.
+var defs = []def{
 	{"yt-dlp", "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux", []string{"yt-dlp.exe"}, false},
 	{"ffmpeg", "", []string{"ffmpeg.exe", "ffprobe.exe"}, false},
 	{"deno", "https://github.com/denoland/deno/releases/latest/download/deno-x86_64-unknown-linux-gnu.zip", []string{"deno.exe"}, false},

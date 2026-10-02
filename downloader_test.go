@@ -13,6 +13,7 @@ package main
 
 import (
 	"context"
+	"music_picker/internal/tools"
 	"os"
 	"path/filepath"
 	"testing"
@@ -20,8 +21,8 @@ import (
 )
 
 func TestDownloadReal(t *testing.T) {
-	if _, err := os.Stat(toolPath("yt-dlp.exe")); err != nil {
-		t.Skip("no hay yt-dlp en", binDir())
+	if _, err := os.Stat(tools.Path("yt-dlp.exe")); err != nil {
+		t.Skip("no hay yt-dlp en", tools.BinDir())
 	}
 
 	// t.TempDir() se borra solo al terminar el test.

@@ -9,6 +9,7 @@ package main
 
 import (
 	"context"
+	"music_picker/internal/tools"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -23,7 +24,7 @@ func mkAlbum(t *testing.T, root, folder, artist, album, year string) string {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	gen := exec.CommandContext(context.Background(), toolPath("ffmpeg.exe"), "-v", "error", "-y",
+	gen := exec.CommandContext(context.Background(), tools.Path("ffmpeg.exe"), "-v", "error", "-y",
 		"-f", "lavfi", "-i", "sine=frequency=440:sample_rate=44100", "-t", "1",
 		"-metadata", "artist="+artist, "-metadata", "album_artist="+artist,
 		"-metadata", "album="+album, "-metadata", "date="+year,

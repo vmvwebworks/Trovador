@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"music_picker/internal/tools"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -179,9 +180,9 @@ func (a *App) DetectSplits(path string, n int) ([]float64, error) {
 	}
 	type sil struct{ start, end float64 }
 	detect := func(noise string, minDur float64) ([]sil, error) {
-		cmd := exec.CommandContext(a.ctx, toolPath("ffmpeg.exe"), "-v", "info", "-nostats", "-i", path,
+		cmd := exec.CommandContext(a.ctx, tools.Path("ffmpeg.exe"), "-v", "info", "-nostats", "-i", path,
 			"-af", fmt.Sprintf("silencedetect=noise=%s:d=%.2f", noise, minDur), "-f", "null", "-")
-		hideWindow(cmd)
+		tools.HideWindow(cmd)
 		stderr, err := cmd.StderrPipe()
 		if err != nil {
 			return nil, err

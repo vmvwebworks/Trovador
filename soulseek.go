@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"music_picker/internal/tools"
 	"net/http"
 	"net/url"
 	"path/filepath"
@@ -57,7 +58,7 @@ func (a *App) slskSettings() (user, pass, share, downloads string, port int) {
 // SoulseekState: para pintar la cabecera de la pestaña.
 func (a *App) SoulseekState() slskState {
 	user, _, share, downloads, port := a.slskSettings()
-	st := slskState{Installed: fileExists(toolPath("slskd.exe")), User: user, Share: share, Downloads: downloads, Port: port}
+	st := slskState{Installed: fileExists(tools.Path("slskd.exe")), User: user, Share: share, Downloads: downloads, Port: port}
 	if !st.Installed {
 		st.Message = "slskd no está instalado (60 MB)"
 		return st
@@ -91,22 +92,19 @@ func (a *App) SoulseekState() slskState {
 // SoulseekInstall descarga slskd a bin\ (60 MB), informando por el evento
 // "tools" como las demás herramientas.
 func (a *App) SoulseekInstall() error {
-	for _, t := range toolDefs {
-		if t.Name != "slskd" || !t.missing() {
-			continue
+	a.libLog("comprobando slskd...")
+	installed, err := tools.Install(a.ctx, "slskd", func(name string, done, total int64) {
+		pct := 0.0
+		if total > 0 {
+			pct = float64(done) * 100 / float64(total)
 		}
-		a.libLog("descargando slskd...")
-		err := fetchTool(a.ctx, t, func(name string, done, total int64) {
-			pct := 0.0
-			if total > 0 {
-				pct = float64(done) * 100 / float64(total)
-			}
-			a.emit("slsk-progress", map[string]any{"name": name, "done": done, "total": total, "pct": pct})
-		})
-		if err != nil {
-			return err
-		}
-		a.setTools(toolsState{State: "ready", Message: "Listo", Tools: toolStatuses()})
+		a.emit("slsk-progress", map[string]any{"name": name, "done": done, "total": total, "pct": pct})
+	})
+	if err != nil {
+		return err
+	}
+	if installed {
+		a.setTools(toolsState{State: "ready", Message: "Listo", Tools: tools.Statuses()})
 	}
 	return nil
 }
@@ -118,7 +116,7 @@ func (a *App) SoulseekConnect() (slskState, error) {
 	if user == "" || pass == "" {
 		return a.SoulseekState(), fmt.Errorf("pon tu usuario y contraseña de Soulseek en los ajustes de la pestaña")
 	}
-	if !fileExists(toolPath("slskd.exe")) {
+	if !fileExists(tools.Path("slskd.exe")) {
 		return a.SoulseekState(), fmt.Errorf("slskd no está instalado")
 	}
 	if err := slsk.start(a, user, pass, share, downloads, port); err != nil {

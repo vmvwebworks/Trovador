@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"music_picker/internal/tools"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -89,14 +90,14 @@ func download(ctx context.Context, n int, url string, cfg config, log logFunc) (
 	args := buildArgs(url, cfg)
 
 	// exec.CommandContext: si ctx se cancela, el proceso hijo se mata.
-	cmd := exec.CommandContext(ctx, toolPath("yt-dlp.exe"), args...)
-	hideWindow(cmd)
+	cmd := exec.CommandContext(ctx, tools.Path("yt-dlp.exe"), args...)
+	tools.HideWindow(cmd)
 	// Con bin/ en el PATH, yt-dlp encuentra ffmpeg y deno solo. PYTHONUTF8
 	// obliga a yt-dlp (que es Python) a escribir UTF-8 aunque la consola de
 	// Windows tenga otra codificación; si no, los títulos con acentos que
 	// leemos de su salida llegarían rotos.
 	cmd.Env = append(os.Environ(),
-		"PATH="+binDir()+string(os.PathListSeparator)+os.Getenv("PATH"),
+		"PATH="+tools.BinDir()+string(os.PathListSeparator)+os.Getenv("PATH"),
 		"PYTHONUTF8=1",
 		"PYTHONIOENCODING=utf-8",
 	)
@@ -183,7 +184,7 @@ func buildArgs(url string, cfg config) []string {
 	args := []string{
 		"--no-warnings",
 		"--encoding", "utf-8",
-		"--ffmpeg-location", binDir(),
+		"--ffmpeg-location", tools.BinDir(),
 		"--newline",       // una línea por actualización de progreso (mejor para logs)
 		"--no-overwrites", // no volver a bajar lo que ya existe
 		"--ignore-errors", // en una playlist, un vídeo roto no para el resto
@@ -244,13 +245,13 @@ func finishChapters(ctx context.Context, files []string, log logFunc) {
 		album := filepath.Base(filepath.Clean(dir))
 
 		tmp := dir + ".tmp-" + clean
-		cmd := exec.CommandContext(ctx, toolPath("ffmpeg.exe"), "-v", "error", "-y",
+		cmd := exec.CommandContext(ctx, tools.Path("ffmpeg.exe"), "-v", "error", "-y",
 			"-i", f, "-map", "0", "-c", "copy", "-id3v2_version", "3",
 			"-metadata", "title="+title,
 			"-metadata", "track="+num,
 			"-metadata", "album="+album,
 			tmp)
-		hideWindow(cmd)
+		tools.HideWindow(cmd)
 		if out, err := cmd.CombinedOutput(); err != nil {
 			log(fmt.Sprintf("aviso: no pude etiquetar %s: %v %s", base, err, strings.TrimSpace(string(out))))
 			os.Remove(tmp)

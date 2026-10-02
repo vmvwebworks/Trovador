@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"music_picker/internal/tools"
 	"net"
 	"net/http"
 	"os"
@@ -62,7 +63,7 @@ func (s *slskd) start(a *App, user, pass, share, downloads string, port int) err
 	incomplete := filepath.Join(appDir, "incompleto")
 	// slskd valida que exista wwwroot (su interfaz web) aunque vaya headless;
 	// vacía le basta.
-	for _, d := range []string{appDir, incomplete, downloads, filepath.Join(binDir(), "wwwroot")} {
+	for _, d := range []string{appDir, incomplete, downloads, filepath.Join(tools.BinDir(), "wwwroot")} {
 		if err := os.MkdirAll(d, 0o755); err != nil {
 			return err
 		}
@@ -85,7 +86,7 @@ func (s *slskd) start(a *App, user, pass, share, downloads string, port int) err
 		"--slsk-listen-port", strconv.Itoa(port),
 		"--slsk-description", "Trovador (slskd)",
 	}
-	cmd := exec.Command(toolPath("slskd.exe"), args...)
+	cmd := exec.Command(tools.Path("slskd.exe"), args...)
 	// Los secretos van por variables de entorno y no como argumentos: la
 	// línea de órdenes de un proceso la puede leer cualquier usuario del
 	// equipo (ps, /proc/<pid>/cmdline); su entorno, solo el dueño.
@@ -94,7 +95,7 @@ func (s *slskd) start(a *App, user, pass, share, downloads string, port int) err
 		"SLSKD_SLSK_USERNAME="+user,
 		"SLSKD_SLSK_PASSWORD="+pass,
 	)
-	hideWindow(cmd)
+	tools.HideWindow(cmd)
 	if s.log != nil {
 		s.log.Close()
 	}

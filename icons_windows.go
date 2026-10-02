@@ -3,6 +3,7 @@
 package main
 
 import (
+	"music_picker/internal/tools"
 	"os/exec"
 	"syscall"
 	"unsafe"
@@ -65,7 +66,7 @@ func shellRefreshIcons() {
 	// pequeño en medio del hueco grande sin estirarlo. "ie4uinit -show" es
 	// la forma de Windows de rehacerla, y no cierra el Explorador.
 	cmd := exec.Command("ie4uinit.exe", "-show")
-	hideWindow(cmd)
+	tools.HideWindow(cmd)
 	_ = cmd.Run()
 }
 

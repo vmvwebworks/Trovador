@@ -13,6 +13,7 @@ import (
 	"image"
 	"image/jpeg"
 	"math"
+	"music_picker/internal/tools"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -23,8 +24,8 @@ import (
 // testApp construye un App sin ventana: los eventos van al log del test.
 func testApp(t *testing.T) *App {
 	t.Helper()
-	if _, err := os.Stat(toolPath("ffprobe.exe")); err != nil {
-		t.Skip("no hay ffprobe en", binDir())
+	if _, err := os.Stat(tools.Path("ffprobe.exe")); err != nil {
+		t.Skip("no hay ffprobe en", tools.BinDir())
 	}
 	return &App{
 		ctx:  context.Background(),
@@ -77,7 +78,7 @@ func TestLibrary(t *testing.T) {
 	//    edición (un tono, sin bajar nada) y comprobar el corte.
 	dir := t.TempDir()
 	long := filepath.Join(dir, "disco entero.mp3")
-	gen := exec.CommandContext(ctx, toolPath("ffmpeg.exe"), "-v", "error", "-y",
+	gen := exec.CommandContext(ctx, tools.Path("ffmpeg.exe"), "-v", "error", "-y",
 		"-f", "lavfi", "-i", "sine=frequency=440:sample_rate=44100",
 		"-t", ffTime(rel.TotalLength), "-c:a", "libmp3lame", "-q:a", "9", long)
 	if out, err := gen.CombinedOutput(); err != nil {
@@ -169,7 +170,7 @@ func TestBatch(t *testing.T) {
 	dir := filepath.Join(root, "Cloudkicker - Beacons (Full Album) [HD]")
 	os.MkdirAll(dir, 0o755)
 	long := filepath.Join(dir, "Cloudkicker - Beacons (Full Album) [HD].mp3")
-	gen := exec.CommandContext(ctx, toolPath("ffmpeg.exe"), "-v", "error", "-y",
+	gen := exec.CommandContext(ctx, tools.Path("ffmpeg.exe"), "-v", "error", "-y",
 		"-f", "lavfi", "-i", "sine=frequency=440:sample_rate=44100",
 		"-t", ffTime(rel.TotalLength), "-c:a", "libmp3lame", "-q:a", "9", long)
 	if out, err := gen.CombinedOutput(); err != nil {
@@ -318,7 +319,7 @@ func TestBuildAlbum(t *testing.T) {
 	os.MkdirAll(src, 0o755)
 	for i, name := range []string{"tema uno.mp3", "otro tema.mp3"} {
 		tr := rel.Tracks[i+1] // pistas 2 y 3
-		gen := exec.CommandContext(ctx, toolPath("ffmpeg.exe"), "-v", "error", "-y",
+		gen := exec.CommandContext(ctx, tools.Path("ffmpeg.exe"), "-v", "error", "-y",
 			"-f", "lavfi", "-i", "sine=frequency=440:sample_rate=44100", "-t", ffTime(tr.Length),
 			"-c:a", "libmp3lame", "-q:a", "9", "-metadata", "title="+tr.Title, "-metadata", "artist=Cloudkicker",
 			"-metadata", "album=Beacons", filepath.Join(src, name))
@@ -426,7 +427,7 @@ func TestDuplicates(t *testing.T) {
 	root := t.TempDir()
 	gen := func(dir, name string, tr mbTrack, q string) {
 		os.MkdirAll(dir, 0o755)
-		cmd := exec.CommandContext(ctx, toolPath("ffmpeg.exe"), "-v", "error", "-y",
+		cmd := exec.CommandContext(ctx, tools.Path("ffmpeg.exe"), "-v", "error", "-y",
 			"-f", "lavfi", "-i", "sine=frequency=440:sample_rate=44100", "-t", ffTime(tr.Length),
 			"-c:a", "libmp3lame", "-q:a", q, "-metadata", "title="+tr.Title, "-metadata", "artist=Cloudkicker",
 			"-metadata", "album=Beacons", filepath.Join(dir, name))
@@ -511,7 +512,7 @@ func TestSplitBySilence(t *testing.T) {
 	dir := t.TempDir()
 	long := filepath.Join(dir, "Demo (Full).mp3")
 	// Tres "canciones" de 30, 40 y 35 s con 2 s de silencio entre ellas.
-	gen := exec.CommandContext(ctx, toolPath("ffmpeg.exe"), "-v", "error", "-y",
+	gen := exec.CommandContext(ctx, tools.Path("ffmpeg.exe"), "-v", "error", "-y",
 		"-filter_complex", "sine=frequency=440:duration=30[a];anullsrc=r=44100:cl=mono:d=2[s1];sine=frequency=660:duration=40[b];anullsrc=r=44100:cl=mono:d=2[s2];sine=frequency=880:duration=35[c];[a][s1][b][s2][c]concat=n=5:v=0:a=1[out]",
 		"-map", "[out]", "-c:a", "libmp3lame", "-q:a", "9", long)
 	if out, err := gen.CombinedOutput(); err != nil {
@@ -614,7 +615,7 @@ func TestConvertTrack(t *testing.T) {
 	jpeg.Encode(f, image.NewRGBA(image.Rect(0, 0, 40, 40)), nil)
 	f.Close()
 	src := filepath.Join(dir, "01 - Prueba.wma")
-	gen := exec.CommandContext(ctx, toolPath("ffmpeg.exe"), "-v", "error", "-y",
+	gen := exec.CommandContext(ctx, tools.Path("ffmpeg.exe"), "-v", "error", "-y",
 		"-f", "lavfi", "-i", "sine=frequency=440:sample_rate=44100", "-t", "2",
 		"-metadata", "title=Prueba", "-metadata", "artist=Grupo", "-c:a", "wmav2", src)
 	if out, err := gen.CombinedOutput(); err != nil {

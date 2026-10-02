@@ -533,9 +533,12 @@ Arranque y piezas comunes
   paths.go              rutas y ficheros: comparar, copiar, mover, escribir sin dejar nada a medias
   platform_windows.go   lo que cambia según el sistema: consola oculta, abrir carpetas, rutas, espacio libre
   platform_other.go     lo mismo en Linux
-  tools.go              descarga/actualización de yt-dlp, ffmpeg(+ffprobe) y deno a bin/
-  tools_windows.go      de dónde se descargan las herramientas en Windows (tools_linux.go, en Linux)
   media.go              ffprobe y ffmpeg: leer etiquetas y duración, sacar la carátula, reescribir con etiquetas
+
+internal/tools/           paquete aparte: las herramientas externas
+  tools.go              dónde están, versiones, descarga/actualización de yt-dlp, ffmpeg(+ffprobe), deno y slskd
+  defs_windows.go       de dónde se descargan en Windows (defs_linux.go, en Linux)
+  hide_windows.go       ocultar la consola de los subprocesos (hide_other.go: nada que hacer en Linux)
 
 Descargas
   jobs.go               almacén de trabajos en memoria (mutex) que avisa a la ventana por eventos

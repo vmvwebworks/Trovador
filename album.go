@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"music_picker/internal/tools"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -221,8 +222,8 @@ type trackSource struct {
 // por duración (lo que más fiabilidad da) y parecido de título.
 func (a *App) FindTrackSources(artist, title string, length float64) ([]trackSource, error) {
 	query := strings.TrimSpace(artist + " " + title)
-	cmd := exec.CommandContext(a.ctx, toolPath("yt-dlp.exe"), "-J", "--flat-playlist", "--no-warnings", "ytsearch8:"+query)
-	hideWindow(cmd)
+	cmd := exec.CommandContext(a.ctx, tools.Path("yt-dlp.exe"), "-J", "--flat-playlist", "--no-warnings", "ytsearch8:"+query)
+	tools.HideWindow(cmd)
 	cmd.Env = append(os.Environ(), "PYTHONUTF8=1", "PYTHONIOENCODING=utf-8")
 	out, err := cmd.Output()
 	if err != nil {

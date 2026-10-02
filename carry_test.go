@@ -8,6 +8,7 @@ package main
 
 import (
 	"context"
+	"music_picker/internal/tools"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -39,7 +40,7 @@ func TestCarry(t *testing.T) {
 	os.MkdirAll(filepath.Join(flacDir, "_original"), 0o755)
 	os.MkdirAll(mp3Dir, 0o755)
 	gen := func(path, codec, artist, album string) {
-		cmd := exec.CommandContext(ctx, toolPath("ffmpeg.exe"), "-v", "error", "-y",
+		cmd := exec.CommandContext(ctx, tools.Path("ffmpeg.exe"), "-v", "error", "-y",
 			"-f", "lavfi", "-i", "sine=frequency=440:sample_rate=44100", "-t", "1",
 			"-metadata", "artist="+artist, "-metadata", "album="+album, "-c:a", codec, path)
 		if out, err := cmd.CombinedOutput(); err != nil {

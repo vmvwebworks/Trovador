@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"music_picker/internal/tools"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -107,8 +108,8 @@ func transcode(ctx context.Context, in, out string, f convFormat) error {
 		}
 		args = append(args, f.Args...)
 		args = append(args, tmp)
-		cmd := exec.CommandContext(ctx, toolPath("ffmpeg.exe"), args...)
-		hideWindow(cmd)
+		cmd := exec.CommandContext(ctx, tools.Path("ffmpeg.exe"), args...)
+		tools.HideWindow(cmd)
 		if outb, err := cmd.CombinedOutput(); err != nil {
 			os.Remove(tmp)
 			return fmt.Errorf("ffmpeg: %v %s", err, strings.TrimSpace(string(outb)))

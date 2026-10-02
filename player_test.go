@@ -11,6 +11,7 @@ import (
 	"image"
 	"image/color"
 	"image/jpeg"
+	"music_picker/internal/tools"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -27,7 +28,7 @@ func makeAlbum(t *testing.T, root, artist, album string, n int, withCover bool) 
 	dir := filepath.Join(root, artist, album)
 	os.MkdirAll(dir, 0o755)
 	for i := 1; i <= n; i++ {
-		gen := exec.CommandContext(context.Background(), toolPath("ffmpeg.exe"), "-v", "error", "-y",
+		gen := exec.CommandContext(context.Background(), tools.Path("ffmpeg.exe"), "-v", "error", "-y",
 			"-f", "lavfi", "-i", "sine=frequency=440:sample_rate=44100", "-t", "3",
 			"-metadata", "artist="+artist, "-metadata", "album="+album, "-metadata", "title=Pista "+string(rune('0'+i)),
 			"-c:a", "libmp3lame", "-q:a", "9", filepath.Join(dir, "0"+string(rune('0'+i))+" - Pista.mp3"))

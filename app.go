@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io/fs"
+	"music_picker/internal/tools"
 	"os"
 	"path/filepath"
 	"sort"
@@ -37,10 +38,10 @@ type App struct {
 // toolsState es lo que la ventana muestra en la barra de herramientas:
 // si están listas, si se están descargando (y cuánto falta) o si falló.
 type toolsState struct {
-	State    string       `json:"state"` // checking | downloading | ready | error
-	Message  string       `json:"message"`
-	Progress float64      `json:"progress"` // 0-100 mientras descarga
-	Tools    []toolStatus `json:"tools"`
+	State    string         `json:"state"` // checking | downloading | ready | error
+	Message  string         `json:"message"`
+	Progress float64        `json:"progress"` // 0-100 mientras descarga
+	Tools    []tools.Status `json:"tools"`
 }
 
 // appState es todo lo que la ventana necesita al arrancar.
@@ -87,7 +88,7 @@ func (a *App) shutdown(ctx context.Context) {
 func (a *App) prepareTools() {
 	a.setTools(toolsState{State: "checking", Message: "Comprobando herramientas..."})
 
-	err := ensureTools(a.ctx, func(name string, done, total int64) {
+	err := tools.Ensure(a.ctx, func(name string, done, total int64) {
 		pct := 0.0
 		if total > 0 {
 			pct = float64(done) * 100 / float64(total)
@@ -99,11 +100,11 @@ func (a *App) prepareTools() {
 		})
 	})
 	if err != nil {
-		a.setTools(toolsState{State: "error", Message: err.Error(), Tools: toolStatuses()})
+		a.setTools(toolsState{State: "error", Message: err.Error(), Tools: tools.Statuses()})
 		return
 	}
 
-	st := toolStatuses()
+	st := tools.Statuses()
 	a.setTools(toolsState{State: "ready", Message: "Listo", Tools: st})
 }
 
@@ -120,7 +121,7 @@ func (a *App) setTools(t toolsState) {
 func (a *App) State() appState {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	return appState{Settings: a.settings, Tools: a.tools, BinDir: binDir(), Version: version}
+	return appState{Settings: a.settings, Tools: a.tools, BinDir: tools.BinDir(), Version: version}
 }
 
 // SaveSettings guarda los ajustes de la pestaña Descargas y devuelve los
@@ -255,8 +256,8 @@ func (a *App) Files() ([]fileInfo, error) {
 func (a *App) UpdateYtdlp() (string, error) {
 	ctx, cancel := context.WithTimeout(a.ctx, 2*time.Minute)
 	defer cancel()
-	msg, err := updateYtdlp(ctx)
-	a.setTools(toolsState{State: "ready", Message: "Listo", Tools: toolStatuses()})
+	msg, err := tools.UpdateYtdlp(ctx)
+	a.setTools(toolsState{State: "ready", Message: "Listo", Tools: tools.Statuses()})
 	return msg, err
 }
 

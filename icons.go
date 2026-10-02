@@ -13,6 +13,7 @@ import (
 	_ "image/jpeg"
 	"image/png"
 	"math"
+	"music_picker/internal/tools"
 	"os/exec"
 	"regexp"
 	"strings"
@@ -457,8 +458,8 @@ func (a *App) coverImage(dir string) (image.Image, error) {
 // ffmpegToPNG convierte una imagen en cualquier formato que entienda ffmpeg
 // a PNG (para las carátulas raras que no decodifica Go).
 func ffmpegToPNG(ctx context.Context, data []byte) ([]byte, error) {
-	cmd := exec.CommandContext(ctx, toolPath("ffmpeg.exe"), "-v", "error", "-i", "-", "-f", "image2pipe", "-c:v", "png", "-")
-	hideWindow(cmd)
+	cmd := exec.CommandContext(ctx, tools.Path("ffmpeg.exe"), "-v", "error", "-i", "-", "-f", "image2pipe", "-c:v", "png", "-")
+	tools.HideWindow(cmd)
 	cmd.Stdin = bytes.NewReader(data)
 	return cmd.Output()
 }

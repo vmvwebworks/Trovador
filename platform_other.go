@@ -10,9 +10,6 @@ import (
 
 // La versión de Linux (y macOS) de platform_windows.go.
 
-// En Linux/macOS no hay ventanas de consola que ocultar.
-func hideWindow(cmd *exec.Cmd) {}
-
 // openDir abre una carpeta en el gestor de archivos del escritorio.
 func openDir(dir string) error { return exec.Command("xdg-open", dir).Start() }
 

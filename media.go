@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"music_picker/internal/tools"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -20,11 +21,11 @@ import (
 // técnicos del flujo de audio, y si lleva una imagen incrustada.
 func probe(ctx context.Context, path string) (localTrack, error) {
 	t := localTrack{Path: path, Name: filepath.Base(path)}
-	cmd := exec.CommandContext(ctx, toolPath("ffprobe.exe"), "-v", "error",
+	cmd := exec.CommandContext(ctx, tools.Path("ffprobe.exe"), "-v", "error",
 		"-show_entries", "format=duration,bit_rate,size:format_tags"+
 			":stream=codec_type,codec_name,sample_rate,channels,bit_rate:stream_disposition=attached_pic",
 		"-of", "json", path)
-	hideWindow(cmd)
+	tools.HideWindow(cmd)
 	out, err := cmd.Output()
 	if err != nil {
 		return t, err
@@ -85,9 +86,9 @@ func probe(ctx context.Context, path string) (localTrack, error) {
 // embeddedCover extrae la imagen incrustada de un fichero de audio (bytes
 // JPEG o PNG tal cual, sin recodificar). Error si no tiene.
 func embeddedCover(ctx context.Context, path string) ([]byte, error) {
-	cmd := exec.CommandContext(ctx, toolPath("ffmpeg.exe"), "-v", "error",
+	cmd := exec.CommandContext(ctx, tools.Path("ffmpeg.exe"), "-v", "error",
 		"-i", path, "-an", "-map", "0:v:0", "-c:v", "copy", "-f", "image2pipe", "-")
-	hideWindow(cmd)
+	tools.HideWindow(cmd)
 	out, err := cmd.Output()
 	if err != nil || len(out) < 100 {
 		return nil, fmt.Errorf("sin carátula incrustada")
@@ -125,8 +126,8 @@ func rewriteArgs(ctx context.Context, in, out string, inputArgs []string, tags m
 	}
 	args = append(args, tmp)
 
-	cmd := exec.CommandContext(ctx, toolPath("ffmpeg.exe"), args...)
-	hideWindow(cmd)
+	cmd := exec.CommandContext(ctx, tools.Path("ffmpeg.exe"), args...)
+	tools.HideWindow(cmd)
 	if outb, err := cmd.CombinedOutput(); err != nil {
 		os.Remove(tmp)
 		return fmt.Errorf("ffmpeg: %v %s", err, strings.TrimSpace(string(outb)))

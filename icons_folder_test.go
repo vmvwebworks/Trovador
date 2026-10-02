@@ -11,6 +11,7 @@ import (
 	"image"
 	"image/color"
 	"image/jpeg"
+	"music_picker/internal/tools"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -38,7 +39,7 @@ func TestFolderIcons(t *testing.T) {
 	f, _ := os.Create(filepath.Join(dir, "cover.jpg"))
 	jpeg.Encode(f, img, nil)
 	f.Close()
-	gen := exec.CommandContext(ctx, toolPath("ffmpeg.exe"), "-v", "error", "-y",
+	gen := exec.CommandContext(ctx, tools.Path("ffmpeg.exe"), "-v", "error", "-y",
 		"-f", "lavfi", "-i", "sine=frequency=440:sample_rate=44100", "-t", "2",
 		"-metadata", "title=Chevalier mult estes guariz", "-metadata", "artist=Oliphant", "-metadata", "media=Cassette",
 		"-c:a", "libmp3lame", "-q:a", "9", filepath.Join(dir, "01 - Chevalier.mp3"))
@@ -144,7 +145,7 @@ func TestFolderIconKeep(t *testing.T) {
 		f, _ := os.Create(filepath.Join(dir, "cover.jpg"))
 		jpeg.Encode(f, img, nil)
 		f.Close()
-		gen := exec.CommandContext(context.Background(), toolPath("ffmpeg.exe"), "-v", "error", "-y",
+		gen := exec.CommandContext(context.Background(), tools.Path("ffmpeg.exe"), "-v", "error", "-y",
 			"-f", "lavfi", "-i", "sine=frequency=440:sample_rate=44100", "-t", "1",
 			"-metadata", "title=Prueba", "-metadata", "artist=Prueba", "-metadata", "album="+kindLabel[kind],
 			"-c:a", "libmp3lame", "-q:a", "9", filepath.Join(dir, "01 - Prueba.mp3"))
@@ -169,7 +170,7 @@ func TestMakeFolderIcons(t *testing.T) {
 	}
 	for _, dir := range dirs {
 		os.MkdirAll(dir, 0o755)
-		gen := exec.CommandContext(context.Background(), toolPath("ffmpeg.exe"), "-v", "error", "-y",
+		gen := exec.CommandContext(context.Background(), tools.Path("ffmpeg.exe"), "-v", "error", "-y",
 			"-f", "lavfi", "-i", "sine=frequency=440:sample_rate=44100", "-t", "1",
 			"-metadata", "media=Vinyl", "-c:a", "libmp3lame", "-q:a", "9", filepath.Join(dir, "01 - Pista.mp3"))
 		if out, err := gen.CombinedOutput(); err != nil {
