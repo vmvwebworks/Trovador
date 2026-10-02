@@ -525,45 +525,67 @@ apunta a las herramientas con `MUSIC_PICKER_BIN=build/bin/bin`.
 ## Estructura
 
 ```
-main.go             arranque de Wails: ventana + embed de frontend/
-app.go              App: los métodos que la ventana puede llamar (Submit, Jobs, Cancel...)
-jobs.go             almacén de trabajos en memoria (mutex) que avisa a la ventana por eventos
-downloader.go       worker pool con goroutines; construye y ejecuta yt-dlp; troceado por capítulos
-tools.go            descarga/actualización de yt-dlp, ffmpeg(+ffprobe) y deno a bin/
-musicbrainz.go      cliente de MusicBrainz (1 req/s, reintentos, búsqueda aproximada) y Cover Art Archive
-sources.go          Deezer, Bandcamp y Discogs; búsqueda en paralelo en todas las fuentes
-fuzzy.go            parecido de nombres (Levenshtein + palabras) y emparejamiento pista↔fichero
-library.go          Biblioteca: escaneo con ffprobe, comparación, carátula, corte y etiquetado con ffmpeg
-batch.go            Biblioteca en lote: detección de discos, búsqueda de candidatas, aplicación
-review.go           revisión: confirmar propuestas, elegir candidata o URL de MusicBrainz, buscar fuera
-bytracks.go         identificar un disco por sus canciones (grabaciones → ediciones)
-origins.go          orígenes: de qué disco viene cada fichero de una carpeta mezclada
-album.go            crear álbum (carpeta + ficheros curados), completar pistas desde YouTube, renombrar carpeta
-dupes.go            duplicados: agrupar copias del mismo disco, comparar integridad, fusionar
-rename.go           renombrar carpetas en lote: proponer el nombre de cada carpeta (según cuelgue de la del artista o no) y aplicarlo tras confirmar
-organize.go         ordenar por artista: proponer Colección\Artista\Disco y mover, creando la carpeta del artista
-icons_artist.go     iconos de las carpetas de artista: logo (TheAudioDB, Metal Archives) o foto, o mosaico de carátulas
-icons.go            dibujo de los iconos (CD, vinilo, cinta, funda) con la carátula y codificación .ico
-icons_folder.go     icono de carpeta: desktop.ini, atributos, tipo automático o fijado
-icons_windows.go    atributos de fichero, aviso al Explorador y espacio libre (solo Windows)
-icons_other.go      lo mismo fuera de Windows: icono para Nautilus/Nemo/Caja (gio) y Dolphin (.directory)
-tools_windows.go    de dónde se descargan las herramientas en Windows (tools_linux.go, en Linux)
-soulseek.go         Soulseek: instalar/arrancar/parar slskd y su API (buscar, descargar, transferencias)
-soulseek_complete.go completar un álbum desde Soulseek: localizar pistas que faltan y descargarlas curadas
-soulseek_upgrade.go mejorar calidad desde Soulseek: detectar versiones mejores y sustituir
-config.go           ajustes persistentes (JSON en la carpeta de datos) y carpeta de música por defecto
-platform_windows.go lo que cambia según el sistema: consola oculta, abrir carpetas, rutas, espacio libre (platform_other.go: Linux)
-player.go           reproductor: servir el audio por HTTP con rangos, discos de la colección, caché de tarjetas y miniaturas
-convert.go          convertir pistas de formato con ffmpeg (etiquetas y carátula intactas; original a _original)
-player_favorites.go favoritos del reproductor (favorites.json), siguen a la carpeta si se mueve
-player_crops.go     encuadre manual de la carátula en la cartulina de la pletina (crops.json), sigue a la carpeta
-carry.go            llevarse discos a otra carpeta (USB del coche): nombres FAT32, solo audio y carátulas, a MP3 si se pide
-tools/cabinet       prepara las fotos: gramola (cristal y panel), pletina (hueco), caja y cinta, gramófono (plato), disco y funda
-frontend/index.html la interfaz (pestañas Descargas y Biblioteca)
-frontend/player.js  pestaña Reproductor, cola y barra de reproducción
-frontend/downloads.js, library.js, soulseek.js  lógica de cada pestaña; hablan con Go vía window.go.main.App
-fuzzy_test.go       tests unitarios del parecido y el emparejamiento (go test ./...)
-downloader_test.go, library_test.go  tests de integración (etiqueta `integration`)
-wails.json          configuración de Wails
-build/              icono y manifiesto (generados por Wails); build/bin/ es la salida
+Arranque y piezas comunes
+  main.go               arranque de Wails: ventana + embed de frontend/
+  app.go                App: los métodos que la ventana puede llamar (Submit, Jobs, Cancel...)
+  config.go             ajustes persistentes (JSON en la carpeta de datos), carpeta de datos y de música
+  names.go              nombres: limpiar títulos, artista principal, nombres de fichero válidos, orden natural
+  paths.go              rutas y ficheros: comparar, copiar, mover, escribir sin dejar nada a medias
+  platform_windows.go   lo que cambia según el sistema: consola oculta, abrir carpetas, rutas, espacio libre
+  platform_other.go     lo mismo en Linux
+  tools.go              descarga/actualización de yt-dlp, ffmpeg(+ffprobe) y deno a bin/
+  tools_windows.go      de dónde se descargan las herramientas en Windows (tools_linux.go, en Linux)
+  media.go              ffprobe y ffmpeg: leer etiquetas y duración, sacar la carátula, reescribir con etiquetas
+
+Descargas
+  jobs.go               almacén de trabajos en memoria (mutex) que avisa a la ventana por eventos
+  downloader.go         worker pool con goroutines; construye y ejecuta yt-dlp; troceado por capítulos
+
+Fuentes de datos de discos
+  musicbrainz.go        cliente de MusicBrainz (1 req/s, reintentos, búsqueda aproximada) y Cover Art Archive
+  sources.go            Deezer, Bandcamp y Discogs; búsqueda en paralelo en todas las fuentes
+  fuzzy.go              parecido de nombres (Levenshtein + palabras) y emparejamiento pista↔fichero
+
+Biblioteca
+  library.go            escaneo con ffprobe, comparación con una edición, carátula, corte y etiquetado
+  library_covers.go     carátulas y tarjetas de la cuadrícula (con su caché en memoria)
+  batch.go              en lote: detección de discos, búsqueda de candidatas, aplicación
+  review.go             revisión: confirmar propuestas, elegir candidata o URL de MusicBrainz, buscar fuera
+  bytracks.go           identificar un disco por sus canciones (grabaciones → ediciones)
+  origins.go            orígenes: de qué disco viene cada fichero de una carpeta mezclada
+  album.go              crear álbum (carpeta + ficheros curados), completar pistas desde YouTube, renombrar carpeta
+  getalbum.go           traerse un disco desde un resultado de búsqueda: su carpeta con carátula y las pistas que faltan
+  lengths.go            ediciones sin duraciones: tomarlas de otra fuente, o cortar por silencios o por marcas de tiempo
+  dupes.go              duplicados: agrupar copias del mismo disco, comparar integridad, fusionar
+  rename.go             renombrar carpetas en lote: proponer el nombre de cada carpeta y aplicarlo tras confirmar
+  organize.go           ordenar por artista: proponer Colección\Artista\Disco y mover, creando la carpeta del artista
+  convert.go            convertir pistas de formato con ffmpeg (etiquetas y carátula intactas; original a _original)
+  carry.go              llevarse discos a otra carpeta (USB del coche): nombres FAT32, solo audio y carátulas, a MP3 si se pide
+
+Iconos de carpeta
+  icons.go              dibujo de los iconos (CD, vinilo, cinta, funda) con la carátula y codificación .ico
+  icons_folder.go       icono de carpeta de disco: desktop.ini, atributos, tipo automático o fijado
+  icons_artist.go       icono de carpeta de artista: logo o foto, o mosaico de carátulas
+  icons_artist_fetch.go de dónde sale la imagen del artista: Metal Archives, TheAudioDB, Deezer, Bandcamp, Discogs
+  icons_windows.go      atributos de fichero y aviso al Explorador (solo Windows)
+  icons_other.go        lo mismo fuera de Windows: icono para Nautilus/Nemo/Caja (gio) y Dolphin (.directory)
+
+Soulseek
+  soulseek.go           la pestaña: estado, ajustes, buscar, descargar, transferencias
+  soulseek_daemon.go    el proceso slskd: instalar, arrancar, parar y hablar con su API
+  soulseek_complete.go  completar un álbum desde Soulseek: localizar pistas que faltan y descargarlas curadas
+  soulseek_upgrade.go   mejorar calidad desde Soulseek: detectar versiones mejores y sustituir
+
+Reproductor
+  player.go             servir el audio por HTTP con rangos, discos de la colección, caché de tarjetas y miniaturas
+  player_favorites.go   favoritos (favorites.json), siguen a la carpeta si se mueve
+  player_crops.go       encuadre manual de la carátula en la cartulina de la pletina (crops.json), sigue a la carpeta
+
+Interfaz y resto
+  frontend/index.html   la interfaz (las cuatro pestañas)
+  frontend/downloads.js, library.js, soulseek.js, player.js  lógica de cada pestaña; hablan con Go vía window.go.main.App
+  tools/cabinet         prepara las fotos: gramola (cristal y panel), pletina (hueco), caja y cinta, gramófono (plato), disco y funda
+  *_test.go             tests unitarios (go test ./...); los que llevan la etiqueta `integration` necesitan las herramientas
+  wails.json            configuración de Wails
+  build/                icono y manifiesto (generados por Wails); build/bin/ es la salida
 ```

@@ -2,11 +2,13 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
+	"unicode"
 )
 
 // Nombres: limpiar títulos de vídeos y de carpetas, sacar el artista de un
@@ -164,4 +166,25 @@ func humanSize(b int64) string {
 	default:
 		return fmt.Sprintf("%d B", b)
 	}
+}
+
+// fmtDur: 754.3 -> "12:34".
+func fmtDur(sec float64) string {
+	s := int(math.Round(sec))
+	return fmt.Sprintf("%d:%02d", s/60, s%60)
+}
+
+// chunk devuelve el primer tramo de s: todo dígitos o todo no-dígitos.
+func chunk(s string) string {
+	digits := unicode.IsDigit(rune(s[0]))
+	for i, r := range s {
+		if unicode.IsDigit(r) != digits {
+			return s[:i]
+		}
+	}
+	return s
+}
+
+func isDigits(s string) bool {
+	return s != "" && unicode.IsDigit(rune(s[0]))
 }
