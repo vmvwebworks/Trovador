@@ -517,8 +517,8 @@
       </div>
       <div class="row"><span class="meta">Con token, las búsquedas de la Biblioteca consultan también Discogs (demos, cintas, tiradas pequeñas). Sin él: MusicBrainz, Deezer y Bandcamp.</span></div>
       <div class="row">
-        <label><input type="checkbox" id="folderIcons"> Iconos de carpeta en el Explorador</label>
-        <span class="meta">Al aplicar carátula o etiquetas, la carpeta del disco pasa a verse en el Explorador como lo que es (CD, vinilo, cinta o funda) con su carátula; las carpetas de artista, con su logo o foto. Deja un desktop.ini y un folder.ico ocultos dentro; se puede quitar desde la ficha del disco.</span>
+        <label><input type="checkbox" id="folderIcons"> Iconos de carpeta</label>
+        <span class="meta">Al aplicar carátula o etiquetas, la carpeta del disco pasa a verse en el gestor de archivos como lo que es (CD, vinilo, cinta o funda) con su carátula; las carpetas de artista, con su logo o foto. Deja unos ficheros ocultos dentro (desktop.ini y folder.ico; en Linux también .folder.png, .directory y .hidden); se puede quitar desde la ficha del disco.</span>
       </div>
         <span class="spacer"></span>
         <span class="meta" id="settingsMsg"></span>
@@ -543,7 +543,7 @@
         <button class="ghost" id="libRefresh" title="Volver a leer la carpeta">Releer</button>
         <button class="ghost" id="libSelAll">marcar todos</button>
         <button class="ghost" id="libDupes" title="Detectar carpetas repetidas del mismo disco, comparar su integridad y dejar una sola">duplicados</button>
-        <button class="ghost" id="libIcons" title="Poner icono de carpeta del Explorador a todos los discos de esta carpeta, a cualquier profundidad (CD, vinilo, cinta o funda, con su carátula), y a las carpetas de artista (logo o foto). Los que ya lo tienen al día se saltan.">iconos Explorador</button>
+        <button class="ghost" id="libIcons" title="Poner icono de carpeta a todos los discos de esta carpeta, a cualquier profundidad (CD, vinilo, cinta o funda, con su carátula), y a las carpetas de artista (logo o foto). Los que ya lo tienen al día se saltan.">iconos carpeta</button>
         <button class="ghost" id="libRename" title="Poner a cada carpeta de disco el nombre que le toca (dentro de la carpeta de su artista, el título a secas; suelta, «Artista - Álbum (Año)»): con los discos marcados, o con todos si no marcas ninguno. Antes de tocar nada muestra el cambio de cada uno y puedes desmarcar los que no quieras.">renombrar</button>
         <button class="ghost" id="libOrganize" title="Meter cada disco marcado en la carpeta de su artista (Colección › Artista › Disco), creándola si no existe; en discos entre varios artistas manda el primero acreditado. Antes de mover, lo propone.">por artista</button>
         <button class="ghost" id="libCarry" title="Copiar los discos marcados (o todos) a otra carpeta, por ejemplo el USB del coche: cada uno en su carpeta «Artista - Álbum», nombres aptos para FAT32, solo audio y carátulas, y si quieres convirtiendo a MP3 lo que no lo sea. Antes de copiar enseña el plan y si cabe.">llevarse…</button>
@@ -638,8 +638,8 @@
             <div class="row"><span class="mono dim" id="libDetailPath"></span><span class="spacer"></span><button class="ghost" id="libOpenDir">abrir carpeta</button></div>
             <div class="row icon-row">
               <img id="iconPreview" alt="" hidden>
-              <label>Explorador
-                <select id="iconKind" title="Cómo se dibuja la carpeta en el Explorador de Windows">
+              <label>Icono
+                <select id="iconKind" title="Cómo se dibuja la carpeta en el gestor de archivos">
                   <option value="">automático</option><option value="cd">CD</option><option value="vinyl">Vinilo</option><option value="cassette">Cassette</option><option value="digital">Funda</option>
                 </select>
               </label>

@@ -1,5 +1,6 @@
 # Release portable: al empujar una etiqueta vX.Y.Z se compila Trovador en
-# Windows con esa versión dentro y se publica un zip en GitHub Releases.
+# Windows y en Linux con esa versión dentro y se publican en GitHub
+# Releases un zip (Windows) y un tar.gz (Linux).
 #
 #   git tag v1.0.0 && git push --tags
 name: release
@@ -31,4 +32,32 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: Trovador-*-windows-portable.zip
+          generate_release_notes: true
+
+  # Linux: tar.gz (conserva el permiso de ejecución) con el binario, el
+  # icono y linux-menu.sh para añadirlo al menú. Compilado en Ubuntu 24.04:
+  # vale para esa versión y posteriores (necesita libwebkit2gtk-4.1).
+  build-linux:
+    needs: build # después: si no, los dos a la vez crean la release dos veces
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Dependencias
+        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
+      - name: Wails CLI
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+      - name: Compilar
+        run: |
+          VER="${GITHUB_REF_NAME#v}"
+          wails build -tags webkit2_41 -ldflags "-X main.version=$VER"
+          mkdir -p dist/Trovador
+          cp build/bin/Trovador build/appicon.png linux-menu.sh README.md LICENSE dist/Trovador/
+          tar -C dist -czf "Trovador-$VER-linux-x64.tar.gz" Trovador
+      - name: Publicar
+        uses: softprops/action-gh-release@v2
+        with:
+          files: Trovador-*-linux-x64.tar.gz
           generate_release_notes: true

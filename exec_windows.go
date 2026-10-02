@@ -16,3 +16,6 @@ func hideWindow(cmd *exec.Cmd) {
 		CreationFlags: 0x08000000, // CREATE_NO_WINDOW
 	}
 }
+
+// openDir abre una carpeta en el Explorador.
+func openDir(dir string) error { return exec.Command("explorer", dir).Start() }

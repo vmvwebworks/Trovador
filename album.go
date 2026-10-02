@@ -346,6 +346,7 @@ func (a *App) renameAlbumTo(dir, name string) (string, error) {
 		return dir, fmt.Errorf("no pude renombrar la carpeta (¿algún fichero abierto?): %w", err)
 	}
 	a.batch.move(dir, target)
+	fixIconAttrs(target) // en Linux el icono va por ruta: se vuelve a apuntar
 	a.libLog("carpeta renombrada: %s  ->  %s", filepath.Base(dir), filepath.Base(target))
 	favMove(dir, target)
 	a.emit("album-moved", map[string]string{"from": dir, "to": target})
@@ -393,8 +394,10 @@ func removeIfEmptyAlbum(dir string) {
 	if err != nil {
 		return
 	}
-	// Solo quedan cosas nuestras: la carátula y el icono de carpeta.
-	leftovers := map[string]bool{"cover.jpg": true, iniFileName: true, iconFileName: true}
+	// Solo quedan cosas nuestras: la carátula y el icono de carpeta (con
+	// lo que añade en Linux).
+	leftovers := map[string]bool{"cover.jpg": true, iniFileName: true, iconFileName: true,
+		".folder.png": true, ".directory": true, ".hidden": true}
 	for _, e := range entries {
 		if !leftovers[strings.ToLower(e.Name())] {
 			return

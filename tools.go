@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 )
@@ -21,18 +22,13 @@ import (
 
 type toolDef struct {
 	Name     string   // nombre para mostrar
-	URL      string   // de dónde descargarlo
+	URL      string   // de dónde descargarlo; vacía: se usa la del sistema (PATH)
 	Files    []string // ejecutables que aporta; si la URL es un zip, se extraen de él
 	Optional bool     // no se descarga al arrancar, solo cuando se necesita
 }
 
-var toolDefs = []toolDef{
-	{"yt-dlp", "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe", []string{"yt-dlp.exe"}, false},
-	{"ffmpeg", "https://github.com/yt-dlp/FFmpeg-Builds/releases/latest/download/ffmpeg-master-latest-win64-gpl.zip", []string{"ffmpeg.exe", "ffprobe.exe"}, false},
-	{"deno", "https://github.com/denoland/deno/releases/latest/download/deno-x86_64-pc-windows-msvc.zip", []string{"deno.exe"}, false},
-	// slskd: motor Soulseek, 60 MB; solo si se usa la pestaña Soulseek.
-	{"slskd", "https://github.com/slskd/slskd/releases/download/0.26.0/slskd-0.26.0-win-x64.zip", []string{"slskd.exe"}, true},
-}
+// toolDefs (qué herramientas y de dónde) depende del sistema: está en
+// tools_windows.go y tools_linux.go.
 
 // toolStatus es lo que ve la interfaz de cada herramienta.
 type toolStatus struct {
@@ -57,7 +53,12 @@ func binDir() string {
 }
 
 // toolPath es la ruta completa de una herramienta por su nombre de fichero.
+// Los nombres se escriben con .exe (el de Windows); en otros sistemas se le
+// quita, así el resto del código no tiene que preocuparse.
 func toolPath(file string) string {
+	if runtime.GOOS != "windows" {
+		file = strings.TrimSuffix(file, ".exe")
+	}
 	return filepath.Join(binDir(), file)
 }
 
@@ -154,6 +155,9 @@ func (t toolDef) missing() bool {
 // zip, extrae sus ejecutables. Solo al final renombra al destino: así nunca
 // queda un binario a medias con el nombre bueno.
 func fetchTool(ctx context.Context, t toolDef, progress progressFunc) error {
+	if t.URL == "" {
+		return linkSystemTool(t)
+	}
 	tmp, err := os.CreateTemp(binDir(), t.Name+".*.part")
 	if err != nil {
 		return err
@@ -168,10 +172,32 @@ func fetchTool(ctx context.Context, t toolDef, progress progressFunc) error {
 	tmp.Close()
 
 	if !strings.HasSuffix(t.URL, ".zip") {
+		// CreateTemp lo crea con 0600: sin permiso de ejecución en Linux.
+		if err := os.Chmod(tmpName, 0o755); err != nil {
+			return err
+		}
 		return os.Rename(tmpName, toolPath(t.Files[0]))
 	}
 	for _, f := range t.Files {
-		if err := extractFromZip(tmpName, f, toolPath(f)); err != nil {
+		dest := toolPath(f)
+		if err := extractFromZip(tmpName, filepath.Base(dest), dest); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// linkSystemTool enlaza en bin/ los ejecutables que ya están instalados en
+// el sistema (ffmpeg en Linux, que solo se publica en .tar.xz).
+func linkSystemTool(t toolDef) error {
+	for _, f := range t.Files {
+		dest := toolPath(f)
+		src, err := exec.LookPath(filepath.Base(dest))
+		if err != nil {
+			return fmt.Errorf("no está instalado %s (sudo apt install %s)", filepath.Base(dest), t.Name)
+		}
+		os.Remove(dest) // por si queda un enlace roto
+		if err := os.Symlink(src, dest); err != nil {
 			return err
 		}
 	}

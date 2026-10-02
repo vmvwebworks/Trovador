@@ -824,6 +824,7 @@ func artistDirs(root string, albums []string) []string {
 func (a *App) refreshArtistIcon(ctx context.Context, dir string) (skipped bool, err error) {
 	prev := readIni(dir)
 	if prev.kind == kindArtist && prev.sig == artistSig(dir) && fileExists(filepath.Join(dir, iconFileName)) {
+		fileManagerIcon(dir)
 		return true, nil
 	}
 	return false, a.writeArtistIcon(ctx, dir)

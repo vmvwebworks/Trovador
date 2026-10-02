@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Trovador</title>
-<meta name="description" content="Trovador: descarga, ordena, etiqueta y reproduce tu colección de música en Windows. Portable, gratis y de código abierto.">
+<meta name="description" content="Trovador: descarga, ordena, etiqueta y reproduce tu colección de música en Windows y Linux. Portable, gratis y de código abierto.">
 <link rel="icon" href="logo.png">
 <style>
   :root { --bg: #0f1115; --panel: #171a21; --line: #262a34; --text: #e6e8ee; --muted: #8b93a7; --accent: #6ee7b7; }
@@ -49,9 +49,9 @@
   </header>
 
   <div class="cta">
-    <a class="btn" href="https://github.com/vmvwebworks/Trovador/releases/latest">Descargar para Windows</a>
+    <a class="btn" href="https://github.com/vmvwebworks/Trovador/releases/latest">Descargar para Windows y Linux</a>
     <a class="btn ghost" href="https://github.com/vmvwebworks/Trovador">Código en GitHub</a>
-    <span class="note">Portable: un solo <code>Trovador.exe</code>, sin instalar. Windows 10/11.</span>
+    <span class="note">Portable, sin instalar: un solo <code>Trovador.exe</code> en Windows 10/11; un <code>tar.gz</code> en Linux (Ubuntu 24.04 o posterior).</span>
   </div>
 
   <section>
@@ -61,7 +61,7 @@
       <div class="card"><b>Identifica</b><p>Cruza cada carpeta con MusicBrainz, Deezer, Bandcamp y Discogs: pistas que faltan, orden, duraciones, edición.</p></div>
       <div class="card"><b>Ordena</b><p>Renombra carpetas, las mete en la de su artista, detecta duplicados, separa discos en un solo fichero.</p></div>
       <div class="card"><b>Etiqueta</b><p>Títulos, números, artista, año, carátula incrustada; y el formato de origen (CD, vinilo, cinta).</p></div>
-      <div class="card"><b>Se ve en el Explorador</b><p>Cada carpeta de disco con su icono: la carátula como CD, vinilo o cinta; los artistas con su logo o foto.</p></div>
+      <div class="card"><b>Se ve en tus carpetas</b><p>En el Explorador de Windows y en Nautilus, Nemo o Dolphin: cada carpeta de disco con su icono: la carátula como CD, vinilo o cinta; los artistas con su logo o foto.</p></div>
       <div class="card"><b>Reproduce</b><p>Reproductor con cola, búsqueda y favoritos en cuatro visualizaciones: gramola, pletina de casete, gramófono y carrusel.</p></div>
       <div class="card"><b>Al coche</b><p>Copia discos a un USB con nombres aptos para FAT32 y, si quieres, todo a MP3.</p></div>
       <div class="card"><b>Tuyo</b><p>Código abierto (MIT), sin cuentas ni telemetría. Las herramientas (yt-dlp, ffmpeg) se descargan de sus sitios oficiales.</p></div>
@@ -86,6 +86,7 @@
       <li>En <b>Biblioteca</b>, elige la carpeta de tu música. En <b>Reproductor</b>, dale al play.</li>
     </ol>
     <p class="note">Tus ajustes, favoritos y la caché de carátulas viven en <code>%APPDATA%\Trovador</code>. Para actualizar, descarga el zip nuevo y sustituye el exe.</p>
+    <p class="note">En Linux: descomprime el <code>tar.gz</code>, ejecuta <code>./linux-menu.sh</code> para tenerlo en el menú de aplicaciones e instala ffmpeg (<code>sudo apt install ffmpeg</code>). Los datos van a <code>~/.config/Trovador</code>.</p>
   </section>
 
   <footer>

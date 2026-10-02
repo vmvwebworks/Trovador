@@ -1,10 +1,10 @@
 # Trovador
 
-App de escritorio (Windows) para descargar música de YouTube, YouTube Music y
+App de escritorio (Windows y Linux) para descargar música de YouTube, YouTube Music y
 Bandcamp como MP3 con carátula y etiquetas. Vídeos sueltos, playlists,
 álbumes, y discos enteros en un solo vídeo (los trocea por capítulos).
 
-Por dentro es un programa en **Go** con ventana **Wails** (WebView2) que
+Por dentro es un programa en **Go** con ventana **Wails** (WebView2 en Windows, WebKitGTK en Linux) que
 orquesta [yt-dlp](https://github.com/yt-dlp/yt-dlp) y **ffmpeg**. El código
 está comentado para que sirva de introducción a Go.
 
@@ -26,17 +26,28 @@ instalador: se saca el exe a una carpeta y ya; las herramientas se las
 descarga él la primera vez a `bin\` junto al exe, y los datos van a
 `%APPDATA%\Trovador`. Para actualizar, sustituir el exe por el nuevo.
 
+En **Linux** (Ubuntu 24.04 o posterior, x64) es un `tar.gz` con el binario
+`Trovador`: se descomprime donde se quiera y `./linux-menu.sh` lo añade al
+menú de aplicaciones. Necesita ffmpeg del sistema (`sudo apt install
+ffmpeg`); yt-dlp y deno se los descarga él a `bin/`, y los datos van a
+`~/.config/Trovador`.
+
 Publicar una versión es etiquetarla: `git tag v1.0.0 && git push --tags`.
-El flujo `.github/workflows/release.yml` compila en un runner de Windows con
-la versión dentro (`-ldflags "-X main.version=1.0.0"`; sale en la cabecera
-de la app) y publica el zip. En cada push, `test.yml` pasa `go vet` y los
-tests unitarios (los de integración necesitan las herramientas y se pasan
+El flujo `.github/workflows/release.yml` compila en runners de Windows y de
+Linux con la versión dentro (`-ldflags "-X main.version=1.0.0"`; sale en la
+cabecera de la app) y publica el zip y el tar.gz. En cada push, `test.yml`
+pasa `go vet` y los tests unitarios en los dos sistemas (los de integración necesitan las herramientas y se pasan
 a mano). La página del proyecto (`docs/`, GitHub Pages) está en
 https://vmvwebworks.github.io/Trovador/.
 ## Uso
 
-Ejecuta `build/bin/Trovador.exe`. La primera vez descarga yt-dlp, ffmpeg
-y deno (~230 MB) a `bin/` junto al exe, desde sus repositorios oficiales.
+Ejecuta `build/bin/Trovador.exe` (en Linux, `build/bin/Trovador`). La
+primera vez descarga yt-dlp, ffmpeg y deno (~230 MB) a `bin/` junto al exe,
+desde sus repositorios oficiales; en Linux, ffmpeg es el del sistema.
+
+La **carpeta de datos** (ajustes, cachés, favoritos...) es
+`%APPDATA%\Trovador` en Windows y `~/.config/Trovador` en Linux; abajo se
+nombra con la ruta de Windows.
 
 Pega enlaces (uno por línea), elige formato y pulsa **Descargar** (o
 Ctrl+Enter). Cada trabajo muestra su progreso, su log y se puede cancelar.
@@ -47,7 +58,8 @@ Ctrl+Enter). Cada trabajo muestra su progreso, su log y se puede cancelar.
   con título, número y álbum en las etiquetas; el fichero largo se borra.
 - Un "Mix" de YouTube (`list=RD...`) baja solo el vídeo del enlace.
 
-**Ajustes**: carpeta de destino (por defecto `Música\Trovador`) y
+**Ajustes**: carpeta de destino (por defecto `Trovador` dentro de la
+carpeta de Música del usuario; en Linux, la que diga `xdg-user-dir MUSIC`) y
 descargas en paralelo. Se guardan en `%APPDATA%\Trovador\config.json`.
 
 `<destino>\.descargado.txt` es el registro de lo ya bajado: al repetir un
@@ -267,9 +279,9 @@ si cabe en el destino; los que ya estén (con todas sus pistas) se saltan
 salvo que se pida repetirlos. Avance por pista y cancelable; el destino y
 las opciones se recuerdan.
 
-### Iconos en el Explorador
+### Iconos de carpeta
 
-Las carpetas de discos pueden verse en el Explorador de Windows como lo que
+Las carpetas de discos pueden verse en el gestor de archivos como lo que
 son: un **CD** con la carátula impresa, un **vinilo** negro asomando de su
 funda, una **cinta** con la carátula de etiqueta, o una **funda** plana
 (descargas o formato desconocido). El dibujo se genera con la carátula del
@@ -279,20 +291,31 @@ solo lectura en la carpeta, que es la marca que usa el propio Explorador
 para "carpeta personalizada" y no impide tocar lo que hay dentro. Al pasar
 el ratón, el Explorador enseña artista, disco, formato y número de pistas.
 
+En **Linux** se escriben los mismos `desktop.ini` y `folder.ico` (guardan el
+tipo y la firma, y así la carpeta se ve igual si se abre desde Windows) y,
+además, el dibujo a 256 px en `.folder.png`. Nautilus, Nemo y Caja lo toman
+de los metadatos de gvfs (`gio set <carpeta> metadata::custom-icon`), y
+Dolphin de un `.directory` con `Icon=./.folder.png`; `desktop.ini` y
+`folder.ico` se apuntan en `.hidden` para que no se vean. Los metadatos de
+gvfs van por ruta: la app los vuelve a poner al renombrar u ordenar
+carpetas, y si se mueven a mano basta con pasar el botón **iconos carpeta**
+(las que están al día no se redibujan, solo se vuelven a apuntar). Lo mismo
+vale para una colección que ya tenía iconos hechos en Windows.
+
 El formato sale, por este orden, de lo que fijes a mano en la ficha
-(selector *Explorador*), del formato de la edición elegida (MusicBrainz,
+(selector *Icono*), del formato de la edición elegida (MusicBrainz,
 Discogs...), o de la etiqueta `media` de los ficheros (la escriben Picard y
-esta app al etiquetar). Con *Iconos de carpeta en el Explorador* activo en
+esta app al etiquetar). Con *Iconos de carpeta* activo en
 Ajustes (lo está por defecto), el icono se crea o actualiza solo al aplicar
 carátula o etiquetas, al crear un álbum y al terminar una descarga que crea
 carpeta (lista o álbum de Bandcamp: funda). Para la colección entera, el
-botón **iconos Explorador** de la Biblioteca recorre la carpeta elegida a
+botón **iconos carpeta** de la Biblioteca recorre la carpeta elegida a
 cualquier profundidad y pone icono a todos los discos (varios a la vez;
 con progreso y cancelable); guarda en el desktop.ini una firma de con qué
 se hizo, así que la siguiente pasada salta los que no han cambiado y solo
 rehace los que tienen carátula o pistas nuevas. En la ficha de un disco se
-puede fijar el tipo a mano o *quitar* el icono. Si el Explorador tarda en
-enseñar el cambio, F5 en la carpeta.
+puede fijar el tipo a mano o *quitar* el icono. Si el gestor de archivos
+tarda en enseñar el cambio, F5 en la carpeta.
 
 Las **carpetas de artista** (las que contienen discos) también reciben
 icono en esa misma pasada y al ordenar por artista: el **logo** del grupo si
@@ -431,7 +454,7 @@ saltar dentro de la pista es inmediato.
   reintenta sola.
 
 Las tarjetas de disco (artista, álbum y una miniatura de 200 px de la
-carátula) se guardan en `%APPDATA%Trovadorrds.json` y `thumbs`:
+carátula) se guardan en `%APPDATA%\Trovador\cards.json` y `thumbs`:
 la primera vez la cuadrícula se rellena disco a disco (ffmpeg/ffprobe por
 carpeta); desde la segunda sale al instante. Si cambia algo en la carpeta
 de un disco, su tarjeta se recalcula. La Biblioteca usa la misma caché.
@@ -444,7 +467,7 @@ AGPL), que la app descarga a `bin` la primera vez (60 MB, botón *Instalar
 motor*), arranca de fondo sin interfaz propia escuchando solo en
 `127.0.0.1:5030` con una clave de API aleatoria por sesión, y para al cerrar
 la app. Sus datos (base de transferencias, caché de compartidos, log) van a
-`%APPDATA%Trovadorslskd`.
+`%APPDATA%\Trovador\slskd`.
 
 En *ajustes* de la pestaña: usuario y contraseña de Soulseek (si el nombre
 está libre, la red crea la cuenta al entrar), carpeta compartida (por
@@ -466,11 +489,27 @@ Requisitos: Go y la CLI de Wails (`go install github.com/wailsapp/wails/v2/cmd/w
 No hace falta Node: la interfaz es HTML/JS plano sin paso de build.
 
 ```
-wails build                     # -> build/bin/Trovador.exe
+wails build                     # -> build/bin/Trovador.exe (en Linux, ver abajo)
 wails dev                       # ventana con recarga en caliente al editar
 go vet ./...                    # análisis estático
 go test ./...                   # tests unitarios (rápidos, sin red)
 ```
+
+### Linux
+
+También compila y funciona en Linux (probado en Ubuntu 24.04 con Budgie).
+Ahí los datos van a `~/.config/Trovador`, yt-dlp y deno se descargan a
+`bin/` como en Windows, y ffmpeg es el del sistema (se enlaza en `bin/`).
+El reproductor usa GStreamer a través de WebKitGTK: para m4a/AAC hacen
+falta `gstreamer1.0-libav` o `gstreamer1.0-plugins-bad` (en Ubuntu de
+escritorio suelen venir ya). Una vez:
+
+```
+sudo apt install libgtk-3-dev libwebkit2gtk-4.1-dev ffmpeg
+```
+
+y luego `./build-linux.sh`, que compila `build/bin/Trovador` (con
+`-tags webkit2_41`) y lo añade al menú de aplicaciones con `linux-menu.sh`.
 
 Test de integración (descarga de verdad, necesita las herramientas):
 
@@ -505,13 +544,15 @@ rename.go           renombrar carpetas en lote: proponer el nombre de cada carpe
 organize.go         ordenar por artista: proponer Colección\Artista\Disco y mover, creando la carpeta del artista
 artists.go          iconos de las carpetas de artista: logo (TheAudioDB, Metal Archives) o foto, o mosaico de carátulas
 icons.go            dibujo de los iconos (CD, vinilo, cinta, funda) con la carátula y codificación .ico
-folder_icons.go     icono de carpeta del Explorador: desktop.ini, atributos, tipo automático o fijado
-icons_windows.go    atributos de fichero y aviso al Explorador (solo Windows; icons_other.go, el resto)
+folder_icons.go     icono de carpeta: desktop.ini, atributos, tipo automático o fijado
+icons_windows.go    atributos de fichero, aviso al Explorador y espacio libre (solo Windows)
+icons_other.go      lo mismo fuera de Windows: icono para Nautilus/Nemo/Caja (gio) y Dolphin (.directory)
+tools_windows.go    de dónde se descargan las herramientas en Windows (tools_linux.go, en Linux)
 soulseek.go         Soulseek: instalar/arrancar/parar slskd y su API (buscar, descargar, transferencias)
 complete_slsk.go    completar un álbum desde Soulseek: localizar pistas que faltan y descargarlas curadas
 upgrade_slsk.go     mejorar calidad desde Soulseek: detectar versiones mejores y sustituir
-config.go           ajustes persistentes (JSON en %APPDATA%)
-exec_windows.go     oculta la consola de los subprocesos (solo compila en Windows)
+config.go           ajustes persistentes (JSON en la carpeta de datos) y carpeta de música por defecto
+exec_windows.go     oculta la consola de los subprocesos y abre carpetas en el Explorador (exec_other.go: xdg-open)
 player.go           reproductor: servir el audio por HTTP con rangos, discos de la colección, caché de tarjetas y miniaturas
 convert.go          convertir pistas de formato con ffmpeg (etiquetas y carátula intactas; original a _original)
 favorites.go        favoritos del reproductor (favorites.json), siguen a la carpeta si se mueve

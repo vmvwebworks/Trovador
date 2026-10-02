@@ -1,10 +1,13 @@
-# En cada push: vet y los tests unitarios (los de integración necesitan las
-# herramientas descargadas y no corren aquí).
+# En cada push: vet y los tests unitarios, en Windows y en Linux (los de
+# integración necesitan las herramientas descargadas y no corren aquí).
 name: test
 on: [push, pull_request]
 jobs:
   test:
-    runs-on: windows-latest
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5

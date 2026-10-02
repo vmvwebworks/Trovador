@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // settings es lo que el usuario configura desde la ventana y se guarda en
@@ -26,14 +27,35 @@ type settings struct {
 }
 
 func defaultSettings() settings {
-	home, _ := os.UserHomeDir()
 	return settings{
-		OutDir:      filepath.Join(home, "Music", "Trovador"),
+		OutDir:      filepath.Join(musicDir(), "Trovador"),
 		Workers:     3,
 		Format:      "mp3",
 		Quality:     "0",
 		FolderIcons: true,
 	}
+}
+
+// musicDir: la carpeta de música del usuario. En Linux se llama según el
+// idioma (~/Música, ~/Musik...) y la apunta user-dirs.dirs, que es lo que
+// lee xdg-user-dir; en Windows (y si no está) es ~/Music.
+func musicDir() string {
+	home, _ := os.UserHomeDir()
+	if cfg, err := os.UserConfigDir(); err == nil {
+		if raw, err := os.ReadFile(filepath.Join(cfg, "user-dirs.dirs")); err == nil {
+			for _, line := range strings.Split(string(raw), "\n") {
+				val, ok := strings.CutPrefix(strings.TrimSpace(line), "XDG_MUSIC_DIR=")
+				if !ok {
+					continue
+				}
+				val = strings.ReplaceAll(strings.Trim(val, `"`), "$HOME", home)
+				if filepath.IsAbs(val) && filepath.Clean(val) != home { // "$HOME" a secas = desactivada
+					return val
+				}
+			}
+		}
+	}
+	return filepath.Join(home, "Music")
 }
 
 // dataDir: la carpeta de datos de la app, %APPDATA%\Trovador en Windows

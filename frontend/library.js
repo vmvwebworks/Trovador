@@ -977,7 +977,7 @@ $('#actBuild').onclick = async () => {
   finally { $('#actBuild').disabled = false; }
 };
 
-// ---- icono de carpeta para el Explorador ---------------------------------
+// ---- icono de carpeta (Explorador, Nemo, Nautilus, Dolphin) ------------------------------
 // La ficha enseña cómo se dibujaría la carpeta (CD, vinilo, cinta o funda)
 // y deja crearlo, fijar el tipo a mano o quitarlo.
 const KIND_LABEL = { cd: 'CD', vinyl: 'vinilo', cassette: 'cassette', digital: 'funda' };
@@ -1019,7 +1019,7 @@ $('#libIcons').onclick = async () => {
   btn.dataset.running = '1'; btn.textContent = 'iconos: buscando discos… (cancelar)';
   try { await App().MakeFolderIcons(lib.root); }
   catch (e) { $('#libBatchErr').textContent = e; }
-  finally { delete btn.dataset.running; btn.textContent = 'iconos Explorador'; }
+  finally { delete btn.dataset.running; btn.textContent = 'iconos carpeta'; }
 };
 window.runtime.EventsOn('icons', p => {
   const btn = $('#libIcons');

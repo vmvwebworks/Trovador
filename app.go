@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -182,7 +181,7 @@ func (a *App) OpenFolder() error {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
-	return exec.Command("explorer", dir).Start()
+	return openDir(dir)
 }
 
 // OpenPath abre cualquier carpeta en el Explorador.
@@ -190,7 +189,7 @@ func (a *App) OpenPath(dir string) error {
 	if info, err := os.Stat(dir); err != nil || !info.IsDir() {
 		return fmt.Errorf("no existe la carpeta %s", dir)
 	}
-	return exec.Command("explorer", dir).Start()
+	return openDir(dir)
 }
 
 // Submit recibe el texto pegado y arranca un trabajo. Devuelve su id.

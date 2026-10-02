@@ -450,6 +450,7 @@ func (a *App) MakeFolderIcons(root string) (iconProgress, error) {
 				prev := readIni(dir)
 				kind, _, format := a.resolveKindWith(dir, "", prev)
 				if sig := iconSig(dir, kind); sig != "" && sig == prev.sig && fileExists(filepath.Join(dir, iconFileName)) {
+					fileManagerIcon(dir) // al día, pero quizá hecho en Windows o movido
 					report(true)
 					continue
 				}
@@ -503,7 +504,7 @@ func (a *App) MakeFolderIcons(root string) (iconProgress, error) {
 	if ctx.Err() != nil {
 		a.libLog("Iconos: cancelado (%d hechos, %d ya estaban)", p.Done, p.Skipped)
 	} else {
-		a.libLog("Iconos de carpeta: %d hechos, %d ya estaban al día, de %d. Si el Explorador no los muestra aún, pulsa F5 en la carpeta.", p.Done, p.Skipped, p.Total)
+		a.libLog("Iconos de carpeta: %d hechos, %d ya estaban al día, de %d. Si el gestor de archivos no los muestra aún, recarga la carpeta (F5).", p.Done, p.Skipped, p.Total)
 	}
 	return p, nil
 }
@@ -538,7 +539,8 @@ func (a *App) afterDownload(paths []string) {
 }
 
 // fixIconAttrs vuelve a poner los atributos del icono de carpeta (se
-// pierden si la carpeta se copió en vez de renombrarse).
+// pierden si la carpeta se copió en vez de renombrarse) y, en Linux, lo
+// vuelve a apuntar: los metadatos de gvfs van por ruta.
 func fixIconAttrs(dir string) {
 	if !hasFolderIcon(dir) {
 		return
@@ -546,6 +548,7 @@ func fixIconAttrs(dir string) {
 	_ = setAttrs(filepath.Join(dir, iniFileName), attrHidden|attrSystem, 0)
 	_ = setAttrs(filepath.Join(dir, iconFileName), attrHidden, 0)
 	_ = setAttrs(dir, attrReadonly, 0)
+	fileManagerIcon(dir)
 }
 
 // relTo: ruta relativa a root para el registro (o la absoluta si no cuelga).
