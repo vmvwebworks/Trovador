@@ -17,17 +17,12 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strings"
 	"sync"
 	"time"
 
 	xdraw "golang.org/x/image/draw"
 )
-
-func sortNatural(names []string) {
-	sort.Slice(names, func(i, j int) bool { return naturalLess(names[i], names[j]) })
-}
 
 // Iconos de las carpetas de artista: el logo del grupo si lo hay, si no su
 // foto, y si no se encuentra nada, un mosaico con las carátulas de sus

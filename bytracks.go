@@ -18,10 +18,7 @@ import (
 // candidata. Luego pasa por la comprobación de duraciones como cualquier
 // otra.
 
-var (
-	genericTitle = regexp.MustCompile(`(?i)^(intro|outro|untitled|track ?\d+|pista ?\d+|bonus)$`)
-	anyParen     = regexp.MustCompile(`\s*[(\[][^)\]]*[)\]]`)
-)
+var genericTitle = regexp.MustCompile(`(?i)^(intro|outro|untitled|track ?\d+|pista ?\d+|bonus)$`)
 
 // pickTitles elige hasta n títulos distintos y distintivos (los más largos
 // primero: "Ahi Amours Con Dure Departie" identifica mejor que "Intro").

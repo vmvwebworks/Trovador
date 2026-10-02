@@ -1,12 +1,9 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
-	"strings"
 )
 
 // Ordenar la colección por artista: cada disco va dentro de la carpeta de
@@ -24,17 +21,6 @@ type organizeItem struct {
 	NewArtist bool   `json:"newArtist"` // hay que crearla
 	Target    string `json:"target"`    // destino final del disco
 	Skip      string `json:"skip"`      // motivo por el que no se mueve; "" = se mueve
-}
-
-// Separadores que solo aparecen entre artistas distintos. "&" y "," no
-// valen: están dentro de nombres de grupo (Simon & Garfunkel; Earth, Wind &
-// Fire), así que solo se parten cuando la fuente ya da los artistas sueltos.
-var artistSplit = regexp.MustCompile(`(?i)\s*(/|;|\|| feat\.? | ft\.? | featuring | vs\.? | with )\s*`)
-
-// firstArtist: el primer artista de un crédito conjunto.
-func firstArtist(credit string) string {
-	parts := artistSplit.Split(strings.TrimSpace(credit), 2)
-	return strings.TrimSpace(parts[0])
 }
 
 // albumArtist decide el artista de una carpeta: la edición elegida en el
@@ -56,15 +42,6 @@ func (a *App) albumArtist(dir string) (artist, source string) {
 	return "", ""
 }
 
-// artistKey normaliza para comparar nombres de carpeta de artista:
-// "The Cure" y "Cure, The" son la misma.
-func artistKey(name string) string {
-	k := normalizeName(name)
-	k = strings.TrimSuffix(k, " the")
-	k = strings.TrimPrefix(k, "the ")
-	return strings.TrimSpace(k)
-}
-
 // findArtistDir busca en la colección una carpeta que sea ese artista. Una
 // carpeta con audio dentro es un disco, no un artista (un disco homónimo
 // —"Lost Castles/Lost Castles"— no puede hacer de carpeta del artista, y
@@ -84,16 +61,6 @@ func findArtistDir(collection, artist string) string {
 		}
 	}
 	return ""
-}
-
-// samePath: las dos rutas son la misma, con las reglas de mayúsculas del
-// sistema (ver pathKey).
-func samePath(a, b string) bool { return pathKey(a) == pathKey(b) }
-
-// insideOf: p está dentro de dir (o es dir).
-func insideOf(p, dir string) bool {
-	p, dir = pathKey(p), pathKey(dir)
-	return p == dir || strings.HasPrefix(p, dir+string(filepath.Separator))
 }
 
 // OrganizePlan propone dónde iría cada disco dentro de la colección. No
@@ -203,42 +170,4 @@ func (a *App) OrganizeApply(items []organizeItem) (int, error) {
 		}
 	}
 	return moved, nil
-}
-
-// moveDir mueve una carpeta; si está en otra unidad (rename no vale), la
-// copia fichero a fichero y borra el origen.
-func moveDir(ctx context.Context, from, to string) error {
-	if insideOf(to, from) {
-		return fmt.Errorf("el destino %s está dentro del origen", to)
-	}
-	if err := os.Rename(from, to); err == nil {
-		return nil
-	}
-	// Otra unidad, o un fichero abierto: copia y borrado.
-	if err := copyTree(ctx, from, to); err != nil {
-		os.RemoveAll(to)
-		return fmt.Errorf("no pude mover a %s: %v", to, err)
-	}
-	return os.RemoveAll(from)
-}
-
-func copyTree(ctx context.Context, from, to string) error {
-	return filepath.WalkDir(from, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if ctx.Err() != nil {
-			return ctx.Err()
-		}
-		rel, _ := filepath.Rel(from, path)
-		dest := filepath.Join(to, rel)
-		if d.IsDir() {
-			return os.MkdirAll(dest, 0o755)
-		}
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return err
-		}
-		return os.WriteFile(dest, data, 0o644)
-	})
 }

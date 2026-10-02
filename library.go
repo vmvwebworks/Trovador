@@ -103,10 +103,7 @@ func (a *App) ScanFolder(dir string) (folderScan, error) {
 	return scan, nil
 }
 
-var (
-	yearRe       = regexp.MustCompile(`^(19|20)\d\d$`)
-	leadYearBare = regexp.MustCompile(`^\s*(19|20)\d\d\s+`)
-)
+var leadYearBare = regexp.MustCompile(`^\s*(19|20)\d\d\s+`)
 
 // guessNames deduce (artista, álbum) del nombre de la carpeta cotejándolo
 // con las etiquetas de los ficheros, porque el nombre engaña a menudo:
@@ -561,51 +558,6 @@ func trackTags(rel mbReleaseDetail, t mbTrack) map[string]string {
 
 // ---- utilidades ----------------------------------------------------------
 
-func fileExists(p string) bool {
-	_, err := os.Stat(p)
-	return err == nil
-}
-
-// safeName quita los caracteres que Windows no admite en nombres de fichero.
-// Los dos puntos se convierten en " - " ("Magdalena: Medieval Songs" ->
-// "Magdalena - Medieval Songs"); el resto, en guion.
-func safeName(s string) string {
-	s = strings.ReplaceAll(s, ": ", " - ")
-	s = strings.ReplaceAll(s, ":", " -")
-	s = strings.Map(func(r rune) rune {
-		if strings.ContainsRune(`<>:"/\|?*`, r) || r < 32 {
-			return '-'
-		}
-		return r
-	}, s)
-	s = spaces.ReplaceAllString(s, " ")
-	s = strings.TrimSpace(strings.TrimRight(s, "."))
-	// Windows no deja crear ficheros que se llamen como un dispositivo
-	// ("NUL", "CON", "COM1"...), ni siquiera con extensión ("NUL.mp3").
-	stem, _, _ := strings.Cut(s, ".")
-	if reservedNames[strings.ToUpper(strings.TrimSpace(stem))] {
-		s = "_" + s
-	}
-	return s
-}
-
-var reservedNames = map[string]bool{
-	"CON": true, "PRN": true, "AUX": true, "NUL": true,
-	"COM1": true, "COM2": true, "COM3": true, "COM4": true, "COM5": true, "COM6": true, "COM7": true, "COM8": true, "COM9": true,
-	"LPT1": true, "LPT2": true, "LPT3": true, "LPT4": true, "LPT5": true, "LPT6": true, "LPT7": true, "LPT8": true, "LPT9": true,
-}
-
-// checkFolderName comprueba que name sirve como nombre de una carpeta junto
-// a otra: no vacío y un solo elemento (ni "..", ni con barras). safeName puede
-// devolver "" (un título hecho solo de puntos), y los nombres de los planes
-// vuelven de la ventana: sin esto, la carpeta destino sería la madre.
-func checkFolderName(name string) error {
-	if name == "" || name == "." || name == ".." || name != filepath.Base(name) || strings.ContainsAny(name, `/\`) {
-		return fmt.Errorf("nombre de carpeta no válido: «%s»", name)
-	}
-	return nil
-}
-
 // ffTime formatea segundos como los quiere ffmpeg: "123.456".
 func ffTime(sec float64) string { return strconv.FormatFloat(sec, 'f', 3, 64) }
 
@@ -613,27 +565,6 @@ func ffTime(sec float64) string { return strconv.FormatFloat(sec, 'f', 3, 64) }
 func fmtDur(sec float64) string {
 	s := int(math.Round(sec))
 	return fmt.Sprintf("%d:%02d", s/60, s%60)
-}
-
-// naturalLess ordena "2.mp3" antes que "10.mp3": compara los tramos
-// numéricos por valor y el resto sin distinguir mayúsculas.
-func naturalLess(a, b string) bool {
-	for a != "" && b != "" {
-		ca, cb := chunk(a), chunk(b)
-		a, b = a[len(ca):], b[len(cb):]
-		if isDigits(ca) && isDigits(cb) {
-			na, _ := strconv.Atoi(ca)
-			nb, _ := strconv.Atoi(cb)
-			if na != nb {
-				return na < nb
-			}
-			continue
-		}
-		if la, lb := strings.ToLower(ca), strings.ToLower(cb); la != lb {
-			return la < lb
-		}
-	}
-	return len(a) < len(b)
 }
 
 // chunk devuelve el primer tramo de s: todo dígitos o todo no-dígitos.

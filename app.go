@@ -157,24 +157,6 @@ func (a *App) ChooseFolder() (string, error) {
 	})
 }
 
-// existingDir devuelve la carpeta si existe o, si no, la primera de sus
-// carpetas madre que exista. El diálogo nativo de Windows falla (sin abrirse)
-// si se le pide arrancar en una ruta inexistente, y la carpeta de descargas
-// no se crea hasta la primera descarga.
-func existingDir(dir string) string {
-	for dir != "" {
-		if info, err := os.Stat(dir); err == nil && info.IsDir() {
-			return dir
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			return ""
-		}
-		dir = parent
-	}
-	return ""
-}
-
 // OpenFolder abre la carpeta de descargas en el Explorador.
 func (a *App) OpenFolder() error {
 	a.mu.Lock()
@@ -295,30 +277,4 @@ func parseURLText(text string) []string {
 		}
 	}
 	return dedupe(urls)
-}
-
-// dedupe elimina duplicados conservando el orden. El truco del
-// map[string]struct{} es el "set" idiomático de Go: struct{} ocupa 0 bytes.
-func dedupe(in []string) []string {
-	seen := make(map[string]struct{}, len(in))
-	out := make([]string, 0, len(in))
-	for _, u := range in {
-		if _, ok := seen[u]; ok {
-			continue
-		}
-		seen[u] = struct{}{}
-		out = append(out, u)
-	}
-	return out
-}
-
-func humanSize(b int64) string {
-	switch {
-	case b > 1<<20:
-		return fmt.Sprintf("%.1f MB", float64(b)/(1<<20))
-	case b > 1<<10:
-		return fmt.Sprintf("%d kB", b>>10)
-	default:
-		return fmt.Sprintf("%d B", b)
-	}
 }

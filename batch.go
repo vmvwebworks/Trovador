@@ -6,7 +6,6 @@ import (
 	"math"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -470,24 +469,6 @@ func evaluate(d *mbReleaseDetail, scan folderScan) (state string, matched int, s
 		score -= 1
 	}
 	return "mismatch", matched, score
-}
-
-var (
-	bracketed  = regexp.MustCompile(`\[[^\]]*\]`)
-	parenNoise = regexp.MustCompile(`(?i)\((?:[^)]*\b(?:full|official|album|demo|ep|hd|hq|lyric|video|remaster|complet|split|single|compilation|live|bootleg|reissue|rehearsal)[^)]*|\d{4})\)`)
-	wordNoise  = regexp.MustCompile(`(?i)\b(?:full\s+(?:album|ep|demo)|official\s+(?:audio|video))\b`)
-	leadYear   = regexp.MustCompile(`^\s*(\d{4})\s*[-.–]\s+`) // "2014 - X", "2015. X"
-	spaces     = regexp.MustCompile(`\s+`)
-)
-
-// cleanTitle quita el ruido típico de los títulos de vídeo y de las
-// carpetas: "[SWE] [Raw Black]", "(Full Album)", "(Demo)", "(2021)"...
-func cleanTitle(s string) string {
-	s = bracketed.ReplaceAllString(s, " ")
-	s = parenNoise.ReplaceAllString(s, " ")
-	s = wordNoise.ReplaceAllString(s, " ")
-	s = spaces.ReplaceAllString(s, " ")
-	return strings.Trim(s, " -–|:.")
 }
 
 // guessQueries propone pares (artista, álbum) para buscar, de más a menos

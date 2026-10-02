@@ -77,11 +77,6 @@ func dataDir() (string, error) {
 	return dir, nil
 }
 
-func dirExists(p string) bool {
-	info, err := os.Stat(p)
-	return err == nil && info.IsDir()
-}
-
 // configPath: config.json en la carpeta de datos.
 func configPath() (string, error) {
 	dir, err := dataDir()
@@ -132,30 +127,4 @@ func (s settings) save() error {
 	}
 	// 0600: lleva la contraseña de Soulseek, que solo debe leer el usuario.
 	return writeFileAtomic(path, data, 0o600)
-}
-
-// writeFileAtomic escribe en un temporal al lado y luego lo renombra encima:
-// si la app se cierra (o se va la luz) a medias, queda el fichero viejo
-// entero en vez de uno cortado.
-func writeFileAtomic(path string, data []byte, perm os.FileMode) error {
-	tmp, err := os.CreateTemp(filepath.Dir(path), filepath.Base(path)+".*.tmp")
-	if err != nil {
-		return err
-	}
-	defer os.Remove(tmp.Name()) // no hace nada si el rename ha ido bien
-	if _, err := tmp.Write(data); err != nil {
-		tmp.Close()
-		return err
-	}
-	if err := tmp.Sync(); err != nil {
-		tmp.Close()
-		return err
-	}
-	if err := tmp.Close(); err != nil {
-		return err
-	}
-	if err := os.Chmod(tmp.Name(), perm); err != nil {
-		return err
-	}
-	return os.Rename(tmp.Name(), path)
 }

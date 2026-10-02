@@ -3,11 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
-	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"sync"
 
@@ -64,23 +62,6 @@ type carryRun struct {
 }
 
 var carry carryRun
-
-var badFATChars = regexp.MustCompile(`[<>:"/\\|?*\x00-\x1f]+`)
-
-// fatName deja un nombre apto para FAT32 (el USB del coche): sin los
-// caracteres prohibidos, sin punto ni espacio al final, no muy largo.
-func fatName(s string) string {
-	s = badFATChars.ReplaceAllString(s, "_")
-	s = strings.Join(strings.Fields(s), " ")
-	s = strings.TrimRight(s, ". ")
-	if len(s) > 100 {
-		s = strings.TrimRight(s[:100], ". ")
-	}
-	if s == "" {
-		s = "_"
-	}
-	return s
-}
 
 // carryNames: artista y título de un disco, de sus etiquetas o del nombre
 // de la carpeta.
@@ -309,48 +290,4 @@ func (a *App) ChooseCarryFolder(current string) (string, error) {
 		Title:            "Carpeta de destino (el USB del coche)",
 		DefaultDirectory: existingDir(current),
 	})
-}
-
-// copyFile copia un fichero por partes, atento a la cancelación; a medias
-// no deja nada.
-func copyFile(ctx context.Context, src, dst string) error {
-	in, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer in.Close()
-	tmp := dst + ".part"
-	out, err := os.Create(tmp)
-	if err != nil {
-		return err
-	}
-	buf := make([]byte, 1<<20)
-	for {
-		if ctx.Err() != nil {
-			out.Close()
-			os.Remove(tmp)
-			return ctx.Err()
-		}
-		n, rerr := in.Read(buf)
-		if n > 0 {
-			if _, werr := out.Write(buf[:n]); werr != nil {
-				out.Close()
-				os.Remove(tmp)
-				return werr
-			}
-		}
-		if rerr == io.EOF {
-			break
-		}
-		if rerr != nil {
-			out.Close()
-			os.Remove(tmp)
-			return rerr
-		}
-	}
-	if err := out.Close(); err != nil {
-		os.Remove(tmp)
-		return err
-	}
-	return os.Rename(tmp, dst)
 }
