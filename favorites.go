@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strings"
 	"sync"
 )
 
@@ -42,13 +41,13 @@ func (f *favStore) save() error {
 	if err := os.MkdirAll(cacheDir(), 0o755); err != nil {
 		return err
 	}
-	return os.WriteFile(favPath(), data, 0o644)
+	return writeFileAtomic(favPath(), data, 0o644)
 }
 
 func (f *favStore) index(dir string) int {
 	dir = filepath.Clean(dir)
 	for i, d := range f.dirs {
-		if strings.EqualFold(d, dir) {
+		if samePath(d, dir) {
 			return i
 		}
 	}

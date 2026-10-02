@@ -238,15 +238,21 @@ func (s *slskd) start(a *App, user, pass, share, downloads string, port int) err
 	args := []string{
 		"--headless", "--no-logo", "--no-version-check", "--no-https",
 		"--http-ip-address", "127.0.0.1", "--http-port", strconv.Itoa(slskdPort),
-		"--api-key", s.apiKey,
 		"--app-dir", appDir,
 		"--downloads", downloads, "--incomplete", incomplete,
 		"--shared", share,
-		"--slsk-username", user, "--slsk-password", pass,
 		"--slsk-listen-port", strconv.Itoa(port),
 		"--slsk-description", "Trovador (slskd)",
 	}
 	cmd := exec.Command(toolPath("slskd.exe"), args...)
+	// Los secretos van por variables de entorno y no como argumentos: la
+	// línea de órdenes de un proceso la puede leer cualquier usuario del
+	// equipo (ps, /proc/<pid>/cmdline); su entorno, solo el dueño.
+	cmd.Env = append(os.Environ(),
+		"SLSKD_API_KEY="+s.apiKey,
+		"SLSKD_SLSK_USERNAME="+user,
+		"SLSKD_SLSK_PASSWORD="+pass,
+	)
 	hideWindow(cmd)
 	if s.log != nil {
 		s.log.Close()

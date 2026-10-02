@@ -248,7 +248,7 @@ func (a *App) MergeDuplicates(keep string, others []string) (mergeResult, error)
 	}
 
 	for _, other := range others {
-		if strings.EqualFold(other, keep) {
+		if samePath(other, keep) {
 			continue
 		}
 		scan, err := a.ScanFolder(other)

@@ -74,7 +74,7 @@ func (a *App) RenamePlan(dirs []string) ([]renameItem, error) {
 		switch {
 		case it.Target == "":
 			it.Skip = "no sé cómo se llama (sin etiquetas ni edición: analiza o etiqueta el disco)"
-		case strings.EqualFold(it.Target, it.Name):
+		case samePath(it.Target, it.Name):
 			it.Skip = "ya se llama así"
 		case fileExists(filepath.Join(filepath.Dir(dir), it.Target)):
 			it.Skip = "ya existe una carpeta «" + it.Target + "» al lado (mira si es un duplicado)"
@@ -134,7 +134,7 @@ func lostWords(old, neu string) []string {
 // targetKey identifica un nombre dentro de su carpeta madre, para detectar dos
 // discos del plan que acabarían llamándose igual en el mismo sitio.
 func targetKey(dir, name string) string {
-	return strings.ToLower(filepath.Join(filepath.Dir(dir), name))
+	return pathKey(filepath.Join(filepath.Dir(dir), name))
 }
 
 // RenameApply renombra las carpetas del plan que se le pasen. Cada una se

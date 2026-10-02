@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 )
 
@@ -50,13 +49,13 @@ func (c *cropStore) save() error {
 	if err := os.MkdirAll(cacheDir(), 0o755); err != nil {
 		return err
 	}
-	return os.WriteFile(cropPath(), data, 0o644)
+	return writeFileAtomic(cropPath(), data, 0o644)
 }
 
 func (c *cropStore) key(dir string) string {
 	dir = filepath.Clean(dir)
 	for k := range c.m {
-		if strings.EqualFold(k, dir) {
+		if samePath(k, dir) {
 			return k
 		}
 	}

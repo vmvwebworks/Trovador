@@ -377,7 +377,7 @@ func (a *App) TagFolder(dir, key string) (int, error) {
 			a.libLog("aviso: no pude renombrar a %s: %v", filepath.Base(m.to), err)
 			continue
 		}
-		if !strings.EqualFold(m.from, m.to) {
+		if !samePath(m.from, m.to) {
 			a.libLog("%s  ->  %s", filepath.Base(m.from), filepath.Base(m.to))
 		}
 	}
@@ -516,7 +516,7 @@ func rewriteArgs(ctx context.Context, in, out string, inputArgs []string, tags m
 	}
 	// Renombrado (etiquetar con otro nombre): el fichero viejo sobra. Al
 	// cortar trozos (inputArgs) el original se conserva; lo aparta quien llama.
-	if inputArgs == nil && !strings.EqualFold(in, out) {
+	if inputArgs == nil && !samePath(in, out) {
 		os.Remove(in)
 	}
 	return nil
@@ -579,7 +579,31 @@ func safeName(s string) string {
 		return r
 	}, s)
 	s = spaces.ReplaceAllString(s, " ")
-	return strings.TrimSpace(strings.TrimRight(s, "."))
+	s = strings.TrimSpace(strings.TrimRight(s, "."))
+	// Windows no deja crear ficheros que se llamen como un dispositivo
+	// ("NUL", "CON", "COM1"...), ni siquiera con extensión ("NUL.mp3").
+	stem, _, _ := strings.Cut(s, ".")
+	if reservedNames[strings.ToUpper(strings.TrimSpace(stem))] {
+		s = "_" + s
+	}
+	return s
+}
+
+var reservedNames = map[string]bool{
+	"CON": true, "PRN": true, "AUX": true, "NUL": true,
+	"COM1": true, "COM2": true, "COM3": true, "COM4": true, "COM5": true, "COM6": true, "COM7": true, "COM8": true, "COM9": true,
+	"LPT1": true, "LPT2": true, "LPT3": true, "LPT4": true, "LPT5": true, "LPT6": true, "LPT7": true, "LPT8": true, "LPT9": true,
+}
+
+// checkFolderName comprueba que name sirve como nombre de una carpeta junto
+// a otra: no vacío y un solo elemento (ni "..", ni con barras). safeName puede
+// devolver "" (un título hecho solo de puntos), y los nombres de los planes
+// vuelven de la ventana: sin esto, la carpeta destino sería la madre.
+func checkFolderName(name string) error {
+	if name == "" || name == "." || name == ".." || name != filepath.Base(name) || strings.ContainsAny(name, `/\`) {
+		return fmt.Errorf("nombre de carpeta no válido: «%s»", name)
+	}
+	return nil
 }
 
 // ffTime formatea segundos como los quiere ffmpeg: "123.456".

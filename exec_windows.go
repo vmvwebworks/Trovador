@@ -4,6 +4,8 @@ package main
 
 import (
 	"os/exec"
+	"path/filepath"
+	"strings"
 	"syscall"
 )
 
@@ -19,3 +21,7 @@ func hideWindow(cmd *exec.Cmd) {
 
 // openDir abre una carpeta en el Explorador.
 func openDir(dir string) error { return exec.Command("explorer", dir).Start() }
+
+// pathKey es la forma de una ruta para compararla con otra: en Windows las
+// mayúsculas no cuentan (C:\Música y c:\música son la misma carpeta).
+func pathKey(p string) string { return strings.ToLower(filepath.Clean(p)) }

@@ -264,7 +264,7 @@ func (s *cardStore) flush() {
 	}
 	if dir := cacheDir(); dir != "" {
 		_ = os.MkdirAll(dir, 0o755)
-		_ = os.WriteFile(filepath.Join(dir, "cards.json"), data, 0o644)
+		_ = writeFileAtomic(filepath.Join(dir, "cards.json"), data, 0o644)
 	}
 }
 

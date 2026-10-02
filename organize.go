@@ -86,9 +86,13 @@ func findArtistDir(collection, artist string) string {
 	return ""
 }
 
+// samePath: las dos rutas son la misma, con las reglas de mayúsculas del
+// sistema (ver pathKey).
+func samePath(a, b string) bool { return pathKey(a) == pathKey(b) }
+
 // insideOf: p está dentro de dir (o es dir).
 func insideOf(p, dir string) bool {
-	p, dir = strings.ToLower(filepath.Clean(p)), strings.ToLower(filepath.Clean(dir))
+	p, dir = pathKey(p), pathKey(dir)
 	return p == dir || strings.HasPrefix(p, dir+string(filepath.Separator))
 }
 
@@ -114,6 +118,11 @@ func (a *App) OrganizePlan(dirs []string, collection string) ([]organizeItem, er
 			continue
 		}
 		it.Artist = safeName(it.Artist)
+		if checkFolderName(it.Artist) != nil {
+			it.Skip = "el nombre del artista no sirve como carpeta"
+			items = append(items, it)
+			continue
+		}
 		if artistKey(filepath.Base(filepath.Dir(dir))) == artistKey(it.Artist) {
 			it.ArtistDir = filepath.Dir(dir)
 			it.Skip = "ya está en la carpeta de " + filepath.Base(it.ArtistDir)
@@ -128,17 +137,17 @@ func (a *App) OrganizePlan(dirs []string, collection string) ([]organizeItem, er
 		}
 		it.Target = filepath.Join(it.ArtistDir, it.Name)
 		switch {
-		case strings.EqualFold(it.Target, dir):
+		case samePath(it.Target, dir):
 			it.Skip = "ya está donde toca"
-		case fileExists(it.Target) || planned[strings.ToLower(it.Target)]:
+		case fileExists(it.Target) || planned[pathKey(it.Target)]:
 			it.Skip = "ya hay una carpeta con ese nombre en " + it.Artist + " (mira si es un duplicado)"
-		case strings.EqualFold(it.ArtistDir, dir):
+		case samePath(it.ArtistDir, dir):
 			it.Skip = "la carpeta del artista se llamaría igual que este disco; renómbralo (p. ej. «" + it.Artist + " - " + it.Name + " (año)») y vuelve a probar"
 		case insideOf(it.ArtistDir, dir) || insideOf(collection, dir):
 			it.Skip = "el destino estaría dentro del propio disco"
 		}
 		if it.Skip == "" {
-			planned[strings.ToLower(it.Target)] = true
+			planned[pathKey(it.Target)] = true
 		}
 		items = append(items, it)
 	}

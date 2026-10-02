@@ -530,7 +530,7 @@ func (a *App) afterDownload(paths []string) {
 	seen := map[string]bool{}
 	for _, p := range paths {
 		dir := filepath.Dir(p)
-		if seen[dir] || strings.EqualFold(dir, out) {
+		if seen[dir] || samePath(dir, out) {
 			continue // sueltas en la carpeta de descargas: no son un disco
 		}
 		seen[dir] = true

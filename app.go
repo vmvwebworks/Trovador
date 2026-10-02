@@ -123,24 +123,26 @@ func (a *App) State() appState {
 	return appState{Settings: a.settings, Tools: a.tools, BinDir: binDir(), Version: version}
 }
 
-// SaveSettings guarda los ajustes que vienen de la ventana.
-func (a *App) SaveSettings(s settings) error {
-	if s.Workers < 1 {
-		s.Workers = 1
-	}
-	if s.Workers > 8 {
-		s.Workers = 8
-	}
-	if strings.TrimSpace(s.OutDir) == "" {
-		return fmt.Errorf("la carpeta de destino no puede estar vacía")
-	}
-	if err := s.save(); err != nil {
-		return err
+// SaveSettings guarda los ajustes de la pestaña Descargas y devuelve los
+// ajustes completos tal como quedan. De lo que manda la ventana solo se toman
+// esos campos: la colección y los de Soulseek los guardan sus propias
+// pestañas, y la copia que tiene la ventana puede ser vieja (si no, elegir la
+// colección y luego cambiar el formato devolvería la colección anterior).
+func (a *App) SaveSettings(in settings) (settings, error) {
+	if strings.TrimSpace(in.OutDir) == "" {
+		return settings{}, fmt.Errorf("la carpeta de destino no puede estar vacía")
 	}
 	a.mu.Lock()
+	defer a.mu.Unlock()
+	s := a.settings
+	s.OutDir, s.Format, s.Quality = in.OutDir, in.Format, in.Quality
+	s.DiscogsToken, s.FolderIcons = in.DiscogsToken, in.FolderIcons
+	s.Workers = min(max(in.Workers, 1), 8)
+	if err := s.save(); err != nil {
+		return settings{}, err
+	}
 	a.settings = s
-	a.mu.Unlock()
-	return nil
+	return s, nil
 }
 
 // ChooseFolder abre el diálogo nativo de elegir carpeta. Devuelve "" si el

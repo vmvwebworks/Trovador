@@ -104,8 +104,13 @@ func loadSettings() settings {
 		return s
 	}
 	// Unmarshal sobre `s` ya rellena: los campos ausentes del JSON
-	// conservan el valor por defecto.
-	_ = json.Unmarshal(data, &s)
+	// conservan el valor por defecto. Si el fichero está roto se aparta
+	// como config.json.roto en vez de pisarlo al guardar: ahí siguen la
+	// contraseña de Soulseek, el token de Discogs y las carpetas.
+	if err := json.Unmarshal(data, &s); err != nil {
+		_ = os.Rename(path, path+".roto")
+		s = defaultSettings()
+	}
 	if s.Workers < 1 {
 		s.Workers = 1
 	}
@@ -125,5 +130,32 @@ func (s settings) save() error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, data, 0o644)
+	// 0600: lleva la contraseña de Soulseek, que solo debe leer el usuario.
+	return writeFileAtomic(path, data, 0o600)
+}
+
+// writeFileAtomic escribe en un temporal al lado y luego lo renombra encima:
+// si la app se cierra (o se va la luz) a medias, queda el fichero viejo
+// entero en vez de uno cortado.
+func writeFileAtomic(path string, data []byte, perm os.FileMode) error {
+	tmp, err := os.CreateTemp(filepath.Dir(path), filepath.Base(path)+".*.tmp")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(tmp.Name()) // no hace nada si el rename ha ido bien
+	if _, err := tmp.Write(data); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Sync(); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	if err := os.Chmod(tmp.Name(), perm); err != nil {
+		return err
+	}
+	return os.Rename(tmp.Name(), path)
 }

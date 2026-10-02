@@ -62,8 +62,7 @@ function renderSettings() {
 async function saveSettings(patch) {
   const next = { ...settings, ...patch };
   try {
-    await App().SaveSettings(next);
-    settings = next;
+    settings = await App().SaveSettings(next);
     $('#settingsMsg').textContent = 'guardado';
     setTimeout(() => $('#settingsMsg').textContent = '', 1500);
     refreshFiles();

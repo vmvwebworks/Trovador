@@ -59,7 +59,7 @@ func (a *App) isArtistFolder(parent string, r mbRelease) bool {
 	root := a.libRoot
 	a.mu.Unlock()
 	parent = filepath.Clean(parent)
-	if root != "" && insideOf(parent, root) && !strings.EqualFold(parent, filepath.Clean(root)) {
+	if root != "" && insideOf(parent, root) && !samePath(parent, root) {
 		return true
 	}
 	// Sin raíz conocida (nada más arrancar), queda el nombre: si la carpeta
@@ -107,8 +107,12 @@ func (a *App) BuildAlbum(srcDir, key string, fileIdx []int, move bool) (buildRes
 		return buildResult{}, err
 	}
 
-	dir := filepath.Join(filepath.Dir(srcDir), a.albumFolderIn(filepath.Dir(srcDir), rel.Release))
-	if strings.EqualFold(dir, srcDir) {
+	name := a.albumFolderIn(filepath.Dir(srcDir), rel.Release)
+	if err := checkFolderName(name); err != nil {
+		return buildResult{}, err
+	}
+	dir := filepath.Join(filepath.Dir(srcDir), name)
+	if samePath(dir, srcDir) {
 		return buildResult{}, fmt.Errorf("la carpeta ya se llama así")
 	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -335,8 +339,11 @@ func (a *App) renameToEdition(dir string, rel mbRelease) (string, error) {
 // único sitio que mueve la carpeta por su nombre: lo usan el renombrado por
 // edición y el renombrado en lote.
 func (a *App) renameAlbumTo(dir, name string) (string, error) {
+	if err := checkFolderName(name); err != nil {
+		return dir, err
+	}
 	target := filepath.Join(filepath.Dir(dir), name)
-	if strings.EqualFold(filepath.Clean(target), filepath.Clean(dir)) {
+	if samePath(target, dir) {
 		return dir, nil
 	}
 	if fileExists(target) {

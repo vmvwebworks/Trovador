@@ -809,7 +809,7 @@ func artistDirs(root string, albums []string) []string {
 	var out []string
 	for _, alb := range albums {
 		parent := filepath.Dir(alb)
-		if seen[parent] || strings.EqualFold(parent, root) || countAudio(parent) > 0 {
+		if seen[parent] || samePath(parent, root) || countAudio(parent) > 0 {
 			continue
 		}
 		seen[parent] = true
