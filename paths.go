@@ -10,7 +10,7 @@ import (
 )
 
 // Rutas y ficheros: comprobar si existen, compararlas (con las reglas de
-// mayúsculas de cada sistema, ver pathKey en exec_*.go), y copiar, mover o
+// mayúsculas de cada sistema, ver pathKey en platform_*.go), y copiar, mover o
 // escribir sin dejar nada a medias.
 
 func fileExists(p string) bool {

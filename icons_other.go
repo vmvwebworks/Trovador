@@ -10,7 +10,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"syscall"
 )
 
 const (
@@ -167,13 +166,4 @@ func editHiddenList(dir string, on bool) {
 	if text := strings.Join(out, "\n") + "\n"; text != string(raw) {
 		_ = os.WriteFile(path, []byte(text), 0o644)
 	}
-}
-
-// freeSpace: bytes libres en el disco de la carpeta (-1 si no se sabe).
-func freeSpace(dir string) int64 {
-	var st syscall.Statfs_t
-	if err := syscall.Statfs(dir, &st); err != nil {
-		return -1
-	}
-	return int64(st.Bavail) * int64(st.Bsize)
 }

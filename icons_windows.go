@@ -72,19 +72,3 @@ func shellRefreshIcons() {
 // fileManagerIcon: en Linux apunta el icono para su gestor de archivos; en
 // Windows basta con el desktop.ini.
 func fileManagerIcon(dir string) {}
-
-// freeSpace: bytes libres en la unidad de la carpeta (-1 si no se sabe).
-func freeSpace(dir string) int64 {
-	k32 := syscall.NewLazyDLL("kernel32.dll")
-	proc := k32.NewProc("GetDiskFreeSpaceExW")
-	p, err := syscall.UTF16PtrFromString(dir)
-	if err != nil {
-		return -1
-	}
-	var free, total, totalFree uint64
-	r, _, _ := proc.Call(uintptr(unsafe.Pointer(p)), uintptr(unsafe.Pointer(&free)), uintptr(unsafe.Pointer(&total)), uintptr(unsafe.Pointer(&totalFree)))
-	if r == 0 {
-		return -1
-	}
-	return int64(free)
-}

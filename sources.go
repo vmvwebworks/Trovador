@@ -537,3 +537,19 @@ func parseClock(s string) float64 {
 	}
 	return total
 }
+
+// bandcampTrackURL: la URL absoluta de una pista a partir del enlace
+// relativo de la página del álbum.
+func bandcampTrackURL(albumURL, link string) string {
+	if link == "" {
+		return ""
+	}
+	u, err := url.Parse(albumURL)
+	if err != nil {
+		return ""
+	}
+	if strings.HasPrefix(link, "http") {
+		return link
+	}
+	return u.Scheme + "://" + u.Host + link
+}

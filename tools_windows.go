@@ -1,5 +1,10 @@
+//go:build windows
+
 package main
 
+// En Windows: los .exe de yt-dlp y deno, y ffmpeg+ffprobe de las builds de
+// yt-dlp. En macOS no hay lista (no se compila): habría que añadir
+// tools_darwin.go.
 var toolDefs = []toolDef{
 	{"yt-dlp", "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe", []string{"yt-dlp.exe"}, false},
 	{"ffmpeg", "https://github.com/yt-dlp/FFmpeg-Builds/releases/latest/download/ffmpeg-master-latest-win64-gpl.zip", []string{"ffmpeg.exe", "ffprobe.exe"}, false},

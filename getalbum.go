@@ -2,10 +2,8 @@ package main
 
 import (
 	"fmt"
-	"net/url"
 	"os"
 	"path/filepath"
-	"strings"
 )
 
 // Traerse un disco entero desde un resultado de búsqueda: se crea su
@@ -99,20 +97,4 @@ func (a *App) FindAlbumSourcesBandcamp(key, artist, album string, missing []mbTr
 		}
 	}
 	return out, nil
-}
-
-// bandcampTrackURL: la URL absoluta de una pista a partir del enlace
-// relativo de la página del álbum.
-func bandcampTrackURL(albumURL, link string) string {
-	if link == "" {
-		return ""
-	}
-	u, err := url.Parse(albumURL)
-	if err != nil {
-		return ""
-	}
-	if strings.HasPrefix(link, "http") {
-		return link
-	}
-	return u.Scheme + "://" + u.Host + link
 }

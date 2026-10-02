@@ -1,3 +1,5 @@
+//go:build linux
+
 package main
 
 // En Linux: yt-dlp en su versión autónoma (no necesita Python), deno en

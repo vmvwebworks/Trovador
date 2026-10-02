@@ -128,3 +128,14 @@ func (s settings) save() error {
 	// 0600: lleva la contraseña de Soulseek, que solo debe leer el usuario.
 	return writeFileAtomic(path, data, 0o600)
 }
+
+func cacheDir() string {
+	if d := os.Getenv("MUSIC_PICKER_CACHE"); d != "" { // los tests no tocan la caché real
+		return d
+	}
+	dir, err := dataDir()
+	if err != nil {
+		return ""
+	}
+	return dir
+}

@@ -552,7 +552,7 @@ soulseek.go         Soulseek: instalar/arrancar/parar slskd y su API (buscar, de
 soulseek_complete.go completar un álbum desde Soulseek: localizar pistas que faltan y descargarlas curadas
 soulseek_upgrade.go mejorar calidad desde Soulseek: detectar versiones mejores y sustituir
 config.go           ajustes persistentes (JSON en la carpeta de datos) y carpeta de música por defecto
-exec_windows.go     oculta la consola de los subprocesos y abre carpetas en el Explorador (exec_other.go: xdg-open)
+platform_windows.go lo que cambia según el sistema: consola oculta, abrir carpetas, rutas, espacio libre (platform_other.go: Linux)
 player.go           reproductor: servir el audio por HTTP con rangos, discos de la colección, caché de tarjetas y miniaturas
 convert.go          convertir pistas de formato con ffmpeg (etiquetas y carátula intactas; original a _original)
 player_favorites.go favoritos del reproductor (favorites.json), siguen a la carpeta si se mueve

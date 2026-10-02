@@ -244,17 +244,6 @@ type cardStore struct {
 
 var cardDisk = cardStore{records: map[string]cardRecord{}}
 
-func cacheDir() string {
-	if d := os.Getenv("MUSIC_PICKER_CACHE"); d != "" { // los tests no tocan la caché real
-		return d
-	}
-	dir, err := dataDir()
-	if err != nil {
-		return ""
-	}
-	return dir
-}
-
 func (s *cardStore) load() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
