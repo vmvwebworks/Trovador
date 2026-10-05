@@ -57,6 +57,7 @@ function renderSettings() {
   $('#format').value = settings.format;
   $('#quality').value = settings.quality;
   $('#discogsToken').value = settings.discogsToken || '';
+  $('#lastfmKey').value = settings.lastfmKey || '';
   $('#folderIcons').checked = settings.folderIcons !== false;
 }
 async function saveSettings(patch) {
@@ -166,6 +167,7 @@ document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => {
 
 // ---- token de Discogs (Biblioteca) ---------------------------------------
 $('#saveDiscogs').onclick = () => saveSettings({ discogsToken: $('#discogsToken').value.trim() });
+$('#saveLastfm').onclick = () => saveSettings({ lastfmKey: $('#lastfmKey').value.trim() });
 $('#folderIcons').onchange = () => saveSettings({ folderIcons: $('#folderIcons').checked });
 
 // Cualquier error de JavaScript que se escape acaba en el registro de la

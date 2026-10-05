@@ -210,6 +210,34 @@ momento (el título a secas dentro de la carpeta del artista; `Artista -
 otra carpeta con ese nombre, no se mezclan: avisa y se queda. La tarjeta y la
 ficha se refrescan solas.
 
+### Descubrir
+
+El botón **descubrir** de la Biblioteca busca fuera de la colección sin
+abrir ningún disco: un artista, un disco o `Artista - Disco`. Salen artistas
+(Deezer) y discos (las mismas fuentes que la ficha), y los que ya están en
+la colección o en la carpeta de descargas vienen marcados con **✓ lo
+tienes**; los demás tienen **descargar**, que crea su carpeta y abre el
+panel de Completar, y **▶ escuchar**, para oírlo antes: si el disco está en
+Bandcamp suena entero; si no, fragmentos de 30 s de Deezer; y si no está en
+ninguno, cada pista se busca en YouTube al pulsarla (yt-dlp la baja a una
+carpeta temporal, `%TEMP%\trovador-escucha`, que guarda las últimas ocho). El
+panel de escucha se queda arriba mientras navegas de un artista a otro y
+tiene su propio *descargar*; si suena el reproductor de la app, se calla.
+
+Pinchar un artista enseña su **discografía**, juntando la de Deezer y la de
+MusicBrainz (discos, EPs, directos, recopilatorios y, plegados, sencillos),
+con lo que tienes marcado y la opción *solo lo que me falta*. Debajo, sus
+**parecidos**: de Deezer siempre y de Last.fm si hay API key en Ajustes
+(gratuita: last.fm/api/account/create; el *shared secret* no hace falta).
+Los que ya tienes van al final. Desde cada uno se sigue saltando, y las
+migas de arriba llevan de vuelta. En la ficha de un disco, **discografía y
+parecidos** entra directamente por su artista.
+
+Para no confundir a dos grupos con el mismo nombre («Frost» hay varios), el
+artista de MusicBrainz se saca de sus discos en la colección o de la
+edición que tenga el disco; si solo hay un nombre y es ambiguo, se avisa y
+se usa solo Deezer.
+
 ### Renombrar carpetas en lote
 
 El botón **renombrar** de la Biblioteca pone a cada carpeta de disco el
@@ -496,6 +524,8 @@ sources.go          Deezer, Bandcamp y Discogs; búsqueda en paralelo en todas l
 fuzzy.go            parecido de nombres (Levenshtein + palabras) y emparejamiento pista↔fichero
 library.go          Biblioteca: escaneo con ffprobe, comparación, carátula, corte y etiquetado con ffmpeg
 batch.go            Biblioteca en lote: detección de discos, búsqueda de candidatas, aplicación
+discover.go         descubrir: búsqueda general, discografía (Deezer + MusicBrainz) y parecidos (Deezer + Last.fm) cotejados con la colección
+preview.go          escuchar antes de bajar: audio de Bandcamp (entero) o Deezer (30 s), YouTube a petición; /preview?u= lo reenvía a la ventana
 review.go           revisión: confirmar propuestas, elegir candidata o URL de MusicBrainz, buscar fuera
 bytracks.go         identificar un disco por sus canciones (grabaciones → ediciones)
 origins.go          orígenes: de qué disco viene cada fichero de una carpeta mezclada
@@ -520,7 +550,7 @@ carry.go            llevarse discos a otra carpeta (USB del coche): nombres FAT3
 tools/cabinet       prepara las fotos: gramola (cristal y panel), pletina (hueco), caja y cinta, gramófono (plato), disco y funda
 frontend/index.html la interfaz (pestañas Descargas y Biblioteca)
 frontend/player.js  pestaña Reproductor, cola y barra de reproducción
-frontend/downloads.js, library.js, soulseek.js  lógica de cada pestaña; hablan con Go vía window.go.main.App
+frontend/downloads.js, library.js, discover.js, soulseek.js  lógica de cada pestaña; hablan con Go vía window.go.main.App
 fuzzy_test.go       tests unitarios del parecido y el emparejamiento (go test ./...)
 downloader_test.go, library_test.go  tests de integración (etiqueta `integration`)
 wails.json          configuración de Wails

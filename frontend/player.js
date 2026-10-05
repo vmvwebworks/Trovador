@@ -106,7 +106,10 @@ function togglePlay() {
 
 let seeking = false;
 audio.onended = next;
-audio.onplay = audio.onpause = () => { renderNow(); renderQueue(); renderDeck(); renderDeckState(); renderGramoState(); renderCarouselState(); };
+audio.onplay = audio.onpause = () => {
+  const pv = $('#pvAudio'); // la escucha de Descubrir calla mientras suena la cola
+  if (!audio.paused && pv && !pv.paused) pv.pause();
+  renderNow(); renderQueue(); renderDeck(); renderDeckState(); renderGramoState(); renderCarouselState(); };
 audio.onerror = () => {
   const t = pl.queue[pl.idx];
   if (t) { t.error = 'formato no reproducible'; renderNow(); }

@@ -37,6 +37,10 @@ var audioMIME = map[string]string{
 // mediaHandler sirve /media?p=<ruta absoluta de un fichero de audio>.
 func (a *App) mediaHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/preview" { // escuchar antes de bajar (preview.go)
+			previewHandler(w, r)
+			return
+		}
 		if r.URL.Path != "/media" {
 			http.NotFound(w, r)
 			return

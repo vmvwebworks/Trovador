@@ -33,6 +33,7 @@ func (a *App) CreateAlbum(key string) (buildResult, error) {
 		return buildResult{}, err
 	}
 	a.libLog("álbum: %s", dir)
+	forgetOwned() // Descubrir tiene que verlo ya como «lo tienes»
 	cover := filepath.Join(dir, "cover.jpg")
 	if !fileExists(cover) {
 		if src, err := coverFor(a.ctx, rel, cover, a.searchOpts(false)); err != nil {

@@ -424,6 +424,25 @@
   .src { font-size: 10px; padding: 1px 6px; border-radius: 8px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
   .src.musicbrainz { color: #c084fc; } .src.deezer { color: #a78bfa; } .src.bandcamp { color: #60a5fa; } .src.discogs { color: #f59e0b; }
   .mini { width: 56px; height: 56px; object-fit: cover; border-radius: 4px; background: var(--bg); display: block; }
+  .disc-head { display: flex; align-items: center; gap: 14px; margin-bottom: 6px; }
+  .disc-head img, .disc-head .ph { width: 72px; height: 72px; border-radius: 50%; object-fit: cover; background: var(--bg); border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 26px; }
+  .card.artist .thumb { border-radius: 50%; }
+  .card.have .thumb { opacity: .55; }
+  .card .badge.have { color: var(--ok); }
+  .card .badge.match { left: 14px; right: auto; color: var(--muted); }
+  .card .acts { margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .card .acts button { font-size: 11px; padding: 2px 8px; }
+  .preview { position: sticky; top: 0; z-index: 5; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin-top: 10px; box-shadow: 0 6px 18px rgba(0,0,0,.35); }
+  .preview audio { width: 100%; height: 36px; margin-top: 8px; }
+  #pvTracks { max-height: 210px; overflow: auto; margin-top: 6px; }
+  .pvt { display: flex; align-items: center; gap: 8px; padding: 2px 4px; border-radius: 6px; font-size: 13px; cursor: pointer; }
+  .pvt:hover { background: rgba(255,255,255,.04); }
+  .pvt.now { color: var(--accent); }
+  .pvt .n { width: 22px; text-align: right; color: var(--muted); }
+  .pvt .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .card.rel.playing { border-color: var(--accent); }
+  .crumbs { font-size: 12px; color: var(--muted); }
+  .crumbs a { color: var(--accent); cursor: pointer; text-decoration: none; }
   .mini.none { display: flex; align-items: center; justify-content: center; color: var(--muted); border: 1px solid var(--line); }
   td.thumbcell { width: 60px; padding: 3px 6px; }
   .relcover { width: 96px; height: 96px; object-fit: cover; border-radius: 6px; background: var(--bg); flex-shrink: 0; }
@@ -517,6 +536,12 @@
       </div>
       <div class="row"><span class="meta">Con token, las búsquedas de la Biblioteca consultan también Discogs (demos, cintas, tiradas pequeñas). Sin él: MusicBrainz, Deezer y Bandcamp.</span></div>
       <div class="row">
+        <label>API key de Last.fm</label>
+        <input type="text" id="lastfmKey" placeholder="opcional: last.fm/api/account/create → API key (el shared secret no hace falta)" spellcheck="false">
+        <button class="ghost" id="saveLastfm">guardar</button>
+      </div>
+      <div class="row"><span class="meta">Con clave, los artistas parecidos de Descubrir salen también de Last.fm (lo que escucha la gente; muy bueno con grupos de nicho). Sin ella, solo de Deezer.</span></div>
+      <div class="row">
         <label><input type="checkbox" id="folderIcons"> Iconos de carpeta en el Explorador</label>
         <span class="meta">Al aplicar carátula o etiquetas, la carpeta del disco pasa a verse en el Explorador como lo que es (CD, vinilo, cinta o funda) con su carátula; las carpetas de artista, con su logo o foto. Deja un desktop.ini y un folder.ico ocultos dentro; se puede quitar desde la ficha del disco.</span>
       </div>
@@ -547,6 +572,7 @@
         <button class="ghost" id="libRename" title="Poner a cada carpeta de disco el nombre que le toca (dentro de la carpeta de su artista, el título a secas; suelta, «Artista - Álbum (Año)»): con los discos marcados, o con todos si no marcas ninguno. Antes de tocar nada muestra el cambio de cada uno y puedes desmarcar los que no quieras.">renombrar</button>
         <button class="ghost" id="libOrganize" title="Meter cada disco marcado en la carpeta de su artista (Colección › Artista › Disco), creándola si no existe; en discos entre varios artistas manda el primero acreditado. Antes de mover, lo propone.">por artista</button>
         <button class="ghost" id="libCarry" title="Copiar los discos marcados (o todos) a otra carpeta, por ejemplo el USB del coche: cada uno en su carpeta «Artista - Álbum», nombres aptos para FAT32, solo audio y carátulas, y si quieres convirtiendo a MP3 lo que no lo sea. Antes de copiar enseña el plan y si cabe.">llevarse…</button>
+        <button class="ghost" id="libDiscover" title="Buscar artistas y discos que no tienes: discografías con lo que ya está en la colección marcado, artistas parecidos y descargar lo que falte">descubrir</button>
         <span class="seg" id="libView"><button data-view="grid" title="miniaturas">▦</button><button data-view="list" title="lista">☰</button></span>
         <span class="spacer"></span>
         <button class="ghost" id="libAccept" disabled title="Confirmar de golpe las propuestas que cuadran (íntegras o separables)">Aceptar propuestas</button>
@@ -570,6 +596,23 @@
     <div id="libDupesView" hidden>
       <h2>Duplicados <span class="meta" id="dupMeta"></span><span class="spacer"></span><button class="ghost" id="dupBack">← volver a la lista</button></h2>
       <div id="dupGroups"></div>
+    </div>
+
+    <div id="libDiscoverView" hidden>
+      <h2>Descubrir <span class="meta" id="discMeta"></span><span class="spacer"></span><button class="ghost" id="discBack">← volver a la lista</button></h2>
+      <div class="panel">
+        <div class="row first">
+          <input type="text" id="discQuery" placeholder="Artista, disco o «Artista - Disco»" spellcheck="false">
+          <button id="discGo">Buscar</button>
+        </div>
+        <div class="row"><span class="crumbs" id="discCrumbs"></span><span class="spacer"></span><span class="err" id="discErr"></span></div>
+        <div class="preview" id="discPreview" hidden>
+          <div class="row first"><img class="mini" id="pvCover" alt="" hidden><div style="min-width:0"><b id="pvTitle"></b><br><span class="meta" id="pvMeta"></span></div><span class="spacer"></span><button class="ghost" id="pvGet">descargar</button><button class="ghost" id="pvClose">cerrar</button></div>
+          <audio id="pvAudio" controls></audio>
+          <div id="pvTracks"></div>
+        </div>
+        <div id="discBody" style="margin-top:12px"><p class="empty">Busca un artista o un disco. De cada artista ves su discografía (lo que ya tienes, marcado) y artistas parecidos.</p></div>
+      </div>
     </div>
 
     <div id="libRenameView" hidden>
@@ -635,7 +678,7 @@
           <div style="flex:1;min-width:0">
             <h3 id="libDetailName"></h3>
             <div class="facts" id="libFacts"></div>
-            <div class="row"><span class="mono dim" id="libDetailPath"></span><span class="spacer"></span><button class="ghost" id="libOpenDir">abrir carpeta</button></div>
+            <div class="row"><span class="mono dim" id="libDetailPath"></span><span class="spacer"></span><button class="ghost" id="libDiscog" title="Discografía del artista (lo que tienes y lo que te falta) y artistas parecidos">discografía y parecidos</button><button class="ghost" id="libOpenDir">abrir carpeta</button></div>
             <div class="row icon-row">
               <img id="iconPreview" alt="" hidden>
               <label>Explorador
@@ -895,6 +938,7 @@
 
 <script src="downloads.js"></script>
 <script src="library.js"></script>
+<script src="discover.js"></script>
 <script src="soulseek.js"></script>
 <script src="player.js"></script>
 </body>

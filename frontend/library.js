@@ -294,6 +294,7 @@ async function openDetail(dir) {
   $('#libResults').innerHTML = '';
   $('#libCompare').hidden = true;
   $('#libList').hidden = true;
+  $('#libDiscoverView').hidden = true;
   $('#libBody').hidden = false;
   $('#libDetailName').textContent = dir.split(/[\\/]/).pop();
   $('#libDetailPath').textContent = dir;
@@ -321,7 +322,19 @@ function closeDetail() {
   $('#libBody').hidden = true;
   $('#libList').hidden = false;
 }
-$('#libBack').onclick = () => { closeDetail(); loadAlbums(); };
+// Volver: a Descubrir si el disco se abrió desde allí; si no, a la lista.
+$('#libBack').onclick = () => {
+  closeDetail();
+  if (lib.fromDiscover) { lib.fromDiscover = false; openDiscover(true); }
+  else loadAlbums();
+};
+$('#libDiscog').onclick = () => {
+  const r = lib.release && lib.release.release, s = lib.scan || {};
+  const name = (r && (r.firstArtist || r.artist)) || s.artist;
+  if (!name) { $('#libErr').textContent = 'no sé de qué artista es este disco: busca su edición primero'; return; }
+  closeDetail();
+  openDiscover(false, { type: 'artist', name, mbid: (r && r.source === 'musicbrainz' && r.firstArtistId) || '' });
+};
 $('#libOpenDir').onclick = () => lib.dir && App().OpenPath(lib.dir).catch(e => $('#libErr').textContent = e);
 
 // Carátula del disco (cover.jpg o la incrustada), pedida a Go como data URL.
@@ -476,26 +489,33 @@ function renderSearchResults(res, emptyMsg) {
     }),
     i => `class="pick" data-id="${esc(rels[i].id)}"`);
   $('#libResults').querySelectorAll('tr.pick').forEach(tr => tr.onclick = () => pickRelease(tr.dataset.id, tr));
-  $('#libResults').querySelectorAll('button.getalbum').forEach(b => b.onclick = async e => {
-    e.stopPropagation(); b.disabled = true; b.textContent = 'creando…'; $('#libErr').textContent = '';
-    try {
-      const rel = rels.find(x => x.id === b.dataset.id) || {};
-      const res = await App().CreateAlbum(b.dataset.id);
-      libLog(`Disco creado en ${res.dir}: faltan ${res.missing ? res.missing.length : 0} pista(s)`);
-      delete lib.cards[res.dir];
-      // Si la ficha del disco falla, da igual: lo que importa es el panel de
-      // Completar, que es lo que baja las pistas.
-      try { await openDetail(res.dir); await pickRelease(b.dataset.id, null); }
-      catch (e) { libLog('aviso: ficha del disco: ' + e); }
-      showCompletion(res.dir, b.dataset.id, res.missing || [], rel.artist, rel.title);
-      loadAlbums();
-    } catch (err) { $('#libErr').textContent = err; b.disabled = false; b.textContent = 'descargar'; }
+  $('#libResults').querySelectorAll('button.getalbum').forEach(b => b.onclick = e => {
+    e.stopPropagation(); $('#libErr').textContent = '';
+    getAlbum(rels.find(x => x.id === b.dataset.id) || { id: b.dataset.id }, b, err => $('#libErr').textContent = err);
   });
   $('#libResults').querySelectorAll('button.usecover').forEach(b => b.onclick = async e => {
     e.stopPropagation(); b.disabled = true; b.textContent = 'bajando…'; $('#libErr').textContent = '';
     try { await App().FetchCover(lib.dir, b.dataset.id); b.textContent = 'puesta'; delete lib.cards[lib.dir]; renderCover(lib.dir); loadIcon(lib.dir); }
     catch (err) { $('#libErr').textContent = err; b.disabled = false; b.textContent = 'carátula'; }
   });
+}
+
+// Traerse un disco de un resultado (aquí o en Descubrir): Go crea su carpeta
+// con la carátula y se abre su ficha con el panel de Completar, que es lo
+// que baja las pistas.
+async function getAlbum(rel, btn, onErr) {
+  btn.disabled = true; btn.textContent = 'creando…';
+  try {
+    const res = await App().CreateAlbum(rel.id);
+    libLog(`Disco creado en ${res.dir}: faltan ${res.missing ? res.missing.length : 0} pista(s)`);
+    delete lib.cards[res.dir];
+    // Si la ficha del disco falla, da igual: lo que importa es el panel de
+    // Completar.
+    try { await openDetail(res.dir); await pickRelease(rel.id, null); }
+    catch (e) { libLog('aviso: ficha del disco: ' + e); }
+    showCompletion(res.dir, rel.id, res.missing || [], rel.artist, rel.title);
+    loadAlbums();
+  } catch (err) { onErr(err); btn.disabled = false; btn.textContent = 'descargar'; }
 }
 
 // Elegir una edición: Go la trae y empareja cada pista con el fichero que
