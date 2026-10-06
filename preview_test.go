@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -35,6 +36,24 @@ func TestPreviewHandler(t *testing.T) {
 		if rec := get(bad); rec.Code != http.StatusBadRequest {
 			t.Errorf("%q → %d, quería 400", bad, rec.Code)
 		}
+	}
+}
+
+func TestLastfmTopTracks(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if q := r.URL.Query(); q.Get("method") != "artist.gettoptracks" || q.Get("artist") != "Utred" {
+			t.Errorf("consulta: %s", r.URL.RawQuery)
+		}
+		w.Write([]byte(`{"toptracks":{"track":[{"name":"Arrow"},{"name":"Forest"}]}}`))
+	}))
+	defer srv.Close()
+	old := lastfmBase
+	lastfmBase = srv.URL + "/"
+	defer func() { lastfmBase = old }()
+
+	got, err := lastfmTopTracks(context.Background(), "k", "Utred")
+	if err != nil || len(got) != 2 || got[1].Title != "Forest" || got[1].Number != 2 || got[0].Artist != "Utred" || got[0].Stream != "" {
+		t.Fatalf("got %+v, %v", got, err)
 	}
 }
 

@@ -737,11 +737,22 @@ async function buildAlbum(key, files, btn) {
   } catch (e) { $('#libErr').textContent = e; btn.disabled = false; btn.textContent = 'Crear álbum'; }
 }
 
-// ---- completar un álbum: buscar en YouTube las pistas que faltan ---------
-const cmp = { dir: '', key: '', artist: '', missing: [], cands: {} }; // cands: número de pista -> candidatos
+// ---- completar un álbum: buscar las pistas que faltan ---------------------
+// Primero Soulseek (una búsqueda del disco) y Bandcamp. Si Soulseek tiene
+// una carpeta con el disco entero, se propone tal cual y no se busca en
+// YouTube pista a pista (queda un botón por pista para hacerlo).
+const cmp = {
+  dir: '', key: '', artist: '', missing: [],
+  cands: {},     // número de pista -> candidatos
+  albums: [],    // carpetas de Soulseek con el disco (slskAlbum de Go)
+  albumSel: -1,  // carpeta elegida (-1: pista a pista)
+  sel: {},       // número de pista -> índice elegido a mano (o '' para ninguno)
+  ytDone: {},    // pistas ya buscadas en YouTube
+  ytBusy: {},
+};
 
 function showCompletion(albumDir, key, missing, artist, album) {
-  cmp.dir = albumDir; cmp.key = key; cmp.artist = artist || ''; cmp.album = album || ''; cmp.missing = missing; cmp.cands = {}; cmp.slskPending = false; cmp.bcPending = false;
+  Object.assign(cmp, { dir: albumDir, key, artist: artist || '', album: album || '', missing, cands: {}, albums: [], albumSel: -1, sel: {}, ytDone: {}, ytBusy: {}, slskPending: false, bcPending: false });
   $('#libComplete').hidden = false;
   $('#cmpMeta').textContent = `${albumDir.split(/[\/]/).pop()} · faltan ${missing.length} pista(s)`;
   $('#cmpSummary').textContent = '';
@@ -750,10 +761,28 @@ function showCompletion(albumDir, key, missing, artist, album) {
   if (missing.length) findAllCandidates();
 }
 
+const slskQuality = c => `<span class="${c.ext === 'flac' ? 'ok' : ''}">${esc((c.ext || '').toUpperCase())}${c.bitRate ? ' ' + c.bitRate + 'k' : ''}</span>`;
+const slskSlot = c => c.freeSlot ? '<span class="ok">hueco libre</span>' : `<span class="warn">cola ${c.queue}</span>`;
+const sameFile = (a, b) => a && b && a.username === b.username && a.filename === b.filename;
+
+// La carpeta elegida decide lo marcado por defecto en sus pistas; lo que se
+// marca a mano en una pista manda sobre eso.
+function defaultPick(t, cands) {
+  if (cmp.sel[t.number] !== undefined) return cmp.sel[t.number] === '' ? -1 : Number(cmp.sel[t.number]);
+  const al = cmp.albums[cmp.albumSel];
+  const pick = al && al.picks[t.number];
+  if (pick) {
+    const i = cands.findIndex(c => sameFile(c, pick));
+    if (i >= 0) return i;
+  }
+  return cands.findIndex(c => Math.abs(c.diff) <= 3);
+}
+
 function renderCompletion() {
+  renderCmpAlbums();
   if (!cmp.missing.length) { $('#cmpTable').innerHTML = '<p class="empty">No falta ninguna pista: el álbum está completo.</p>'; return; }
   const srcLabel = c => c.source === 'soulseek'
-    ? `<span class="src discogs">Soulseek</span> <span class="dim">${esc(c.username)}</span> · <span class="${c.ext === 'flac' ? 'ok' : ''}">${esc(c.ext.toUpperCase())}${c.bitRate ? ' ' + c.bitRate + 'k' : ''}</span> · ${fmtSize(c.size)} · ${c.freeSlot ? '<span class="ok">hueco libre</span>' : `<span class="warn">cola ${c.queue}</span>`}`
+    ? `<span class="src discogs">Soulseek</span> <span class="dim">${esc(c.username)}</span> · ${slskQuality(c)} · ${fmtSize(c.size)} · ${slskSlot(c)}`
     : c.source === 'bandcamp'
     ? `<span class="src bandcamp">Bandcamp</span> <span class="dim">${esc(c.channel)}</span> · <span class="ok">pista exacta</span>`
     : `<span class="src deezer">YouTube</span> <span class="dim">[${esc(c.channel)}]</span>`;
@@ -761,22 +790,49 @@ function renderCompletion() {
     const cands = cmp.cands[t.number];
     let body;
     if (cands === undefined) body = `<span class="dim">buscando en ${[cmp.slskPending ? 'Soulseek' : '', cmp.bcPending ? 'Bandcamp' : '', 'YouTube'].filter(Boolean).join(', ')}…</span>`;
-    else if (!cands.length) body = '<span class="missing">sin candidatos</span>';
+    else if (!cands.length) body = `<span class="missing">sin candidatos</span>`;
     else {
-      // Mejor candidato por defecto: el primero que cuadre en duración.
-      const def = cands.findIndex(c => Math.abs(c.diff) <= 3);
+      const def = defaultPick(t, cands);
       body = cands.slice(0, 6).map((c, i) => {
         const cls = Math.abs(c.diff) <= 3 ? 'ok' : Math.abs(c.diff) <= 10 ? 'warn' : 'bad';
         return `<label class="cand"><input type="radio" name="cand-${t.number}" value="${i}" ${i === def ? 'checked' : ''}>
           ${srcLabel(c)} <span>${esc(c.title)}</span> <span class="num ${cls}">${fmtDur(c.duration)} (${c.diff >= 0 ? '+' : ''}${Math.round(c.diff)} s)</span></label>`;
-      }).join('') + `<label class="cand"><input type="radio" name="cand-${t.number}" value=""> <span class="dim">ninguno</span></label>`;
+      }).join('') + `<label class="cand"><input type="radio" name="cand-${t.number}" value="" ${def < 0 ? 'checked' : ''}> <span class="dim">ninguno</span></label>`;
     }
-    return `<div class="miss"><div class="mhead"><b>${t.number}. ${esc(t.title)}</b> <span class="meta">${t.length ? fmtDur(t.length) : ''}</span></div>${body}</div>`;
+    const yt = cands !== undefined && !cmp.ytDone[t.number]
+      ? `<button class="ghost ytsearch" data-n="${t.number}" ${cmp.ytBusy[t.number] ? 'disabled' : ''}>${cmp.ytBusy[t.number] ? 'buscando en YouTube…' : 'buscar también en YouTube'}</button>` : '';
+    return `<div class="miss"><div class="mhead"><b>${t.number}. ${esc(t.title)}</b> <span class="meta">${t.length ? fmtDur(t.length) : ''}</span>${yt}</div>${body}</div>`;
   }).join('');
+  $('#cmpTable').querySelectorAll('input[type=radio]').forEach(r => r.onchange = () => { cmp.sel[r.name.slice(5)] = r.value; });
+  $('#cmpTable').querySelectorAll('button.ytsearch').forEach(b => b.onclick = () => searchYouTube(cmp.missing.find(t => t.number === Number(b.dataset.n))));
+}
+
+// Las carpetas de Soulseek con el disco: elegir una marca todas sus pistas.
+function renderCmpAlbums() {
+  const box = $('#cmpAlbums');
+  if (!cmp.albums.length || !cmp.missing.length) { box.innerHTML = ''; return; }
+  box.innerHTML = `<div class="meta">Disco entero en Soulseek</div>` +
+    cmp.albums.map((a, i) => `<label class="cand"><input type="radio" name="cmpAlbum" value="${i}" ${i === cmp.albumSel ? 'checked' : ''}>
+      <span class="src discogs">Soulseek</span> <b>${esc(a.username)}</b> <span class="dim" title="${esc(a.folder)}">${esc(a.folder.split(/[\\/]/).pop())}</span>
+      · <span class="${a.covered === a.of ? 'ok' : 'warn'}">${a.covered}/${a.of} pistas</span> · ${slskQuality(a)} · ${fmtSize(a.size)} · ${slskSlot(a)}</label>`).join('') +
+    `<label class="cand"><input type="radio" name="cmpAlbum" value="-1" ${cmp.albumSel < 0 ? 'checked' : ''}> <span class="dim">elegir pista a pista</span></label>`;
+  box.querySelectorAll('input').forEach(r => r.onchange = () => { cmp.albumSel = Number(r.value); cmp.sel = {}; renderCompletion(); });
+}
+
+async function searchYouTube(t) {
+  if (!t || cmp.ytBusy[t.number]) return;
+  cmp.ytBusy[t.number] = true; renderCompletion();
+  let yt = [];
+  try { yt = await App().FindTrackSources(t.artist || cmp.artist, t.title, t.length) || []; }
+  catch (e) { libLog('YouTube: ' + e); }
+  cmp.ytBusy[t.number] = false; cmp.ytDone[t.number] = true;
+  cmp.cands[t.number] = [...(cmp.cands[t.number] || []), ...yt];
+  renderCompletion();
 }
 
 // Candidatos: primero Soulseek (una sola búsqueda del disco, si está
-// conectado), luego YouTube pista a pista. Se van fundiendo por pista,
+// conectado) y Bandcamp. YouTube pista a pista solo para las que no tiene
+// la carpeta de Soulseek elegida ni Bandcamp. Se van fundiendo por pista,
 // Soulseek delante.
 async function findAllCandidates() {
   const artist = cmp.artist;
@@ -787,9 +843,13 @@ async function findAllCandidates() {
     cmp.slskPending = true; renderCompletion();
     try {
       const found = await App().FindAlbumSourcesSoulseek(artist, cmp.album || '', cmp.missing) || {};
-      Object.assign(slskFor, found);
-      const n = Object.values(found).filter(l => l && l.length).length;
-      libLog(`Soulseek: candidatos para ${n} de ${cmp.missing.length} pista(s) que faltan`);
+      Object.assign(slskFor, found.tracks || {});
+      cmp.albums = found.albums || [];
+      // Por defecto, la mejor carpeta si tiene el disco entero.
+      cmp.albumSel = cmp.albums.length && cmp.albums[0].covered === cmp.albums[0].of ? 0 : -1;
+      const n = Object.values(slskFor).filter(l => l && l.length).length;
+      const whole = cmp.albums.filter(a => a.covered === a.of).length;
+      libLog(`Soulseek: candidatos para ${n} de ${cmp.missing.length} pista(s) que faltan` + (whole ? ` · ${whole} carpeta(s) con todas` : ''));
     } catch (e) { libLog('Soulseek: ' + e); }
     cmp.slskPending = false;
   }
@@ -802,14 +862,13 @@ async function findAllCandidates() {
     if (n) libLog(`Bandcamp: tiene ${n} de ${cmp.missing.length} pista(s) que faltan`);
   } catch (e) { libLog('Bandcamp: ' + e); }
   cmp.bcPending = false;
-  for (const t of cmp.missing) {
-    if (cmp.cands[t.number] !== undefined) continue;
-    let yt = [];
-    try { yt = await App().FindTrackSources(t.artist || artist, t.title, t.length) || []; }
-    catch (e) { libLog('YouTube: ' + e); }
-    cmp.cands[t.number] = [...(slskFor[t.number] || []), ...(bcFor[t.number] || []), ...yt];
-    renderCompletion();
-  }
+  const al = cmp.albums[cmp.albumSel];
+  const covered = t => (al && al.picks[t.number]) || (bcFor[t.number] || []).length;
+  for (const t of cmp.missing) cmp.cands[t.number] = [...(slskFor[t.number] || []), ...(bcFor[t.number] || [])];
+  const skipped = cmp.missing.filter(covered).length;
+  if (skipped) libLog(`${skipped} pista(s) ya tienen fuente en ${[al ? 'Soulseek' : '', Object.keys(bcFor).length ? 'Bandcamp' : ''].filter(Boolean).join(' y ')}: no se buscan en YouTube`);
+  renderCompletion();
+  for (const t of cmp.missing) if (!covered(t)) await searchYouTube(t);
 }
 
 $('#cmpOpen').onclick = () => cmp.dir && App().OpenPath(cmp.dir).catch(e => $('#libErr').textContent = e);
@@ -822,16 +881,33 @@ $('#cmpDownload').onclick = async () => {
   }).filter(Boolean);
   if (!picks.length) { $('#cmpSummary').textContent = 'No hay ninguna pista marcada.'; return; }
   $('#cmpDownload').disabled = true;
-  let done = 0;
-  for (const p of picks) {
-    $('#cmpSummary').textContent = `Descargando pista ${p.number} (${p.cand.source === 'soulseek' ? 'Soulseek, puede tardar si hay cola' : p.cand.source === 'bandcamp' ? 'Bandcamp' : 'YouTube'})… (${done}/${picks.length})`;
-    try {
-      if (p.cand.source === 'soulseek') await App().DownloadTrackSoulseek(p.cand.username, p.cand, cmp.dir, cmp.key, p.number);
-      else await App().DownloadTrack(p.cand.url, cmp.dir, cmp.key, p.number);
-      done++;
+  // Soulseek: todo lo de cada usuario en una sola petición (Go espera y cura
+  // cada pista según llega), todos los usuarios a la vez. Bandcamp y YouTube,
+  // mientras tanto, de una en una.
+  const byUser = {};
+  for (const p of picks.filter(p => p.cand.source === 'soulseek')) (byUser[p.cand.username] = byUser[p.cand.username] || []).push({ number: p.number, src: p.cand });
+  const others = picks.filter(p => p.cand.source !== 'soulseek');
+  let done = 0, slskLeft = Object.values(byUser).reduce((n, l) => n + l.length, 0), current = '';
+  const status = () => $('#cmpSummary').textContent = [
+    slskLeft ? `Soulseek: esperando ${slskLeft} pista(s) de ${Object.keys(byUser).length} usuario(s) (puede tardar si hay cola; el registro va diciendo)` : '',
+    current, `${done}/${picks.length} listas`].filter(Boolean).join(' · ');
+  status();
+  const slskJobs = Object.entries(byUser).map(async ([user, list]) => {
+    // (no `done += await …`: leería `done` antes de esperar y los usuarios
+    // en paralelo se pisarían la cuenta)
+    try { const n = await App().DownloadTracksSoulseek(user, list, cmp.dir, cmp.key); done += n; }
+    catch (e) { libLog(`Soulseek (${user}): ${e}`); }
+    slskLeft -= list.length; status();
+  });
+  const otherJob = (async () => {
+    for (const p of others) {
+      current = `pista ${p.number} desde ${p.cand.source === 'bandcamp' ? 'Bandcamp' : 'YouTube'}…`; status();
+      try { await App().DownloadTrack(p.cand.url, cmp.dir, cmp.key, p.number); done++; }
+      catch (e) { libLog(`pista ${p.number}: ${e}`); }
     }
-    catch (e) { libLog(`pista ${p.number}: ${e}`); }
-  }
+    current = ''; status();
+  })();
+  await Promise.all([...slskJobs, otherJob]);
   $('#cmpDownload').disabled = false;
   try {
     cmp.missing = await App().MissingTracks(cmp.dir, cmp.key) || [];

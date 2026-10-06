@@ -32,14 +32,18 @@ type discRelease struct {
 
 // discArtist es un artista encontrado o sugerido.
 type discArtist struct {
-	Name     string   `json:"name"`
-	DeezerID string   `json:"deezerId"`
-	MBID     string   `json:"mbid"`
-	Picture  string   `json:"picture"`
-	Fans     int      `json:"fans"`
-	Match    float64  `json:"match"`   // parecido 0..1 (solo en parecidos)
-	Sources  []string `json:"sources"` // de dónde sale la sugerencia
-	Owned    int      `json:"owned"`   // discos suyos en la colección
+	Name      string   `json:"name"`
+	DeezerID  string   `json:"deezerId"`
+	MBID      string   `json:"mbid"`
+	Picture   string   `json:"picture"`
+	Fans      int      `json:"fans"`
+	Match     float64  `json:"match"`     // parecido 0..1 (solo en parecidos)
+	Sources   []string `json:"sources"`   // de dónde sale la sugerencia
+	Owned     int      `json:"owned"`     // discos suyos en la colección
+	Tags      []string `json:"tags"`      // sus etiquetas de estilo en Last.fm (las 3 primeras)
+	Style     float64  `json:"style"`     // cuánto pega su estilo con el de partida (0..1)
+	Because   []string `json:"because"`   // «para ti»: artistas tuyos a los que se parece
+	Listeners int      `json:"listeners"` // oyentes en Last.fm (0: no se sabe; -1: no lo conoce)
 }
 
 type discoverResult struct {
@@ -57,7 +61,8 @@ type discography struct {
 type similarResult struct {
 	Artists  []discArtist `json:"artists"`
 	Warnings []string     `json:"warnings"`
-	LastFM   bool         `json:"lastfm"` // se consultó Last.fm (hay clave)
+	LastFM   bool         `json:"lastfm"`  // se consultó Last.fm (hay clave)
+	Dropped  int          `json:"dropped"` // descartados por no compartir estilo
 }
 
 // ---- Métodos expuestos a la ventana --------------------------------------
@@ -231,7 +236,7 @@ func (a *App) SimilarArtists(name, deezerID, mbid string) (similarResult, error)
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			rels, err := lastfmSimilar(ctx, key, name, mbid)
+			rels, err := similarCached(ctx, key, name, mbid)
 			if err != nil {
 				warn("last.fm: " + err.Error())
 			}
@@ -241,6 +246,22 @@ func (a *App) SimilarArtists(name, deezerID, mbid string) (similarResult, error)
 	wg.Wait()
 
 	out.Artists = mergeSimilar(name, lf, dz, 30)
+	// Lo descartado («ya lo conozco / no me interesa», taste.go) no sale.
+	kept := out.Artists[:0]
+	for _, ar := range out.Artists {
+		if !isDismissed(ar.Name) {
+			kept = append(kept, ar)
+		}
+	}
+	out.Artists = kept
+	// Con Last.fm, fuera los que no comparten estilo con el de partida.
+	if key != "" {
+		if tags, err := tagsCached(ctx, key, name); err == nil {
+			profile := tagVector(tags, 1, nil)
+			out.Artists, out.Dropped = styleFilter(ctx, key, func(int) map[string]float64 { return profile }, out.Artists)
+		}
+		lfSave()
+	}
 	fillPictures(ctx, out.Artists)
 	owned := a.ownedAlbums()
 	for i := range out.Artists {
@@ -663,6 +684,9 @@ func sameDiscTitle(a, b string) bool {
 var lastfmBase = "https://ws.audioscrobbler.com/2.0/" // lo cambian los tests
 
 func lastfmSimilar(ctx context.Context, key, name, mbid string) ([]discArtist, error) {
+	if err := lfWait(ctx); err != nil {
+		return nil, err
+	}
 	params := url.Values{"method": {"artist.getsimilar"}, "api_key": {key}, "format": {"json"}, "limit": {"30"}, "autocorrect": {"1"}}
 	if mbid != "" {
 		params.Set("mbid", mbid)
@@ -690,6 +714,9 @@ func lastfmSimilar(ctx context.Context, key, name, mbid string) ([]discArtist, e
 	if raw.Error != 0 {
 		if mbid != "" && name != "" {
 			return lastfmSimilar(ctx, key, name, "")
+		}
+		if raw.Error == 6 { // no conoce al artista: no tiene parecidos, no es un fallo
+			return []discArtist{}, nil
 		}
 		return nil, fmt.Errorf("%s", raw.Message)
 	}

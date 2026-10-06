@@ -89,6 +89,7 @@ async function play(i) {
     blobURL = URL.createObjectURL(blob);
     audio.src = blobURL;
     await audio.play();
+    scrobbleStart(t);
   } catch (e) {
     if (loadingPath !== t.path) return;
     t.error = 'no se puede reproducir: ' + (e && e.message ? e.message : e);
@@ -107,8 +108,7 @@ function togglePlay() {
 let seeking = false;
 audio.onended = next;
 audio.onplay = audio.onpause = () => {
-  const pv = $('#pvAudio'); // la escucha de Descubrir calla mientras suena la cola
-  if (!audio.paused && pv && !pv.paused) pv.pause();
+  if (!audio.paused) soloAudio(audio); // la escucha de Descubrir y la radio callan mientras suena la cola
   renderNow(); renderQueue(); renderDeck(); renderDeckState(); renderGramoState(); renderCarouselState(); };
 audio.onerror = () => {
   const t = pl.queue[pl.idx];
@@ -118,8 +118,32 @@ audio.onloadedmetadata = () => {
   const t = pl.queue[pl.idx];
   if (t && audio.duration && !t.duration) { t.duration = audio.duration; renderQueue(); saveQueue(); }
 };
+// Scrobbling (Last.fm, scrobble.go): al empezar una pista, «escuchando
+// ahora»; cuando se ha oído de verdad la mitad (o 4 minutos) de una pista de
+// más de 30 s, la escucha. Lo saltado con la barra no cuenta como oído. Go
+// decide si el scrobbling está activado.
+const scr = { path: '', start: 0, heard: 0, last: 0, done: true };
+const scrTrack = t => ({ artist: t.artist, track: t.title, album: t.album || '', duration: audio.duration || t.duration || 0, timestamp: scr.start });
+function scrobbleStart(t) {
+  Object.assign(scr, { path: t.path, start: Math.floor(Date.now() / 1000), heard: 0, last: audio.currentTime, done: false });
+  App().NowPlaying(scrTrack(t)).catch(() => {});
+}
+function scrobbleTick() {
+  const t = pl.queue[pl.idx];
+  if (!t || t.path !== scr.path || scr.done) return;
+  const d = audio.currentTime - scr.last;
+  scr.last = audio.currentTime;
+  if (audio.paused || d <= 0 || d > 2) return; // pausa o salto
+  scr.heard += d;
+  if (audio.duration > 30 && scr.heard >= Math.min(audio.duration / 2, 240)) {
+    scr.done = true;
+    App().Scrobble(scrTrack(t)).catch(e => libLogSafe('Last.fm: ' + e));
+  }
+}
+
 audio.ontimeupdate = () => {
   if (!audio.duration) return;
+  scrobbleTick();
   if (!seeking) $('#nbSeek').value = Math.round(audio.currentTime / audio.duration * 1000);
   $('#nbCur').textContent = fmtDur(audio.currentTime);
   $('#nbDur').textContent = fmtDur(audio.duration);
@@ -132,7 +156,7 @@ $('#nbNext').onclick = next;
 $('#nbPrev').onclick = prev;
 // Espacio = reproducir/pausa cuando no se está escribiendo.
 document.addEventListener('keydown', e => {
-  if (e.code === 'Space' && !/INPUT|TEXTAREA|SELECT|BUTTON/.test(e.target.tagName) && pl.queue.length) { e.preventDefault(); togglePlay(); }
+  if (e.code === 'Space' && !/INPUT|TEXTAREA|SELECT|BUTTON/.test(e.target.tagName) && pl.queue.length && !$('#tab-radio').classList.contains('active')) { e.preventDefault(); togglePlay(); }
 });
 try { $('#nbVol').value = localStorage.getItem('plVol') || 80; } catch (e) {}
 audio.volume = $('#nbVol').value / 100;

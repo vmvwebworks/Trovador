@@ -19,6 +19,13 @@ type settings struct {
 	FolderIcons  bool   `json:"folderIcons"`  // crear/actualizar el icono de carpeta del Explorador al aplicar cambios
 	Collection   string `json:"collection"`   // carpeta de la colección (reproductor); vacío = la de descargas
 
+	// Scrobbling a Last.fm (scrobble.go): el secret firma las peticiones; la
+	// sesión la da Last.fm al autorizar y solo la toca Go.
+	LastfmSecret  string `json:"lastfmSecret"`
+	LastfmSession string `json:"lastfmSession"`
+	LastfmUser    string `json:"lastfmUser"`
+	Scrobble      bool   `json:"scrobble"`
+
 	// Soulseek (pestaña Soulseek, motor slskd)
 	SlskUser  string `json:"slskUser"`
 	SlskPass  string `json:"slskPass"`

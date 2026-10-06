@@ -267,6 +267,7 @@ type mbTrack struct {
 	Length   float64 `json:"length"`           // segundos; 0 si MusicBrainz no la tiene
 	URL      string  `json:"url,omitempty"`    // Bandcamp: la página de la pista (se puede descargar con yt-dlp)
 	Stream   string  `json:"stream,omitempty"` // audio para escuchar antes de bajar: Bandcamp entera, Deezer 30 s
+	Album    string  `json:"album,omitempty"`  // muestra de un artista: de qué disco es la pista
 }
 
 type mbReleaseDetail struct {

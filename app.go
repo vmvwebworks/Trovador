@@ -73,6 +73,7 @@ func (a *App) startup(ctx context.Context) {
 	a.store = newJobStore(func() { a.emit("jobs") })
 	a.store.onFinish = a.afterDownload
 	go a.prepareTools()
+	go a.flushScrobbles() // escuchas que no se pudieron enviar la última vez
 }
 
 // shutdown: cancelar descargas en curso y parar slskd para no dejar
@@ -135,6 +136,11 @@ func (a *App) SaveSettings(s settings) error {
 	if strings.TrimSpace(s.OutDir) == "" {
 		return fmt.Errorf("la carpeta de destino no puede estar vacía")
 	}
+	// Lo de Last.fm lo gestiona Go (scrobble.go): la copia de la ventana
+	// puede estar atrasada y no debe pisarlo.
+	a.mu.Lock()
+	s.LastfmSecret, s.LastfmSession, s.LastfmUser, s.Scrobble = a.settings.LastfmSecret, a.settings.LastfmSession, a.settings.LastfmUser, a.settings.Scrobble
+	a.mu.Unlock()
 	if err := s.save(); err != nil {
 		return err
 	}

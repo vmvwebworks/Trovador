@@ -142,13 +142,16 @@ func TestCompleteFromSoulseek(t *testing.T) {
 	}
 	n := 0
 	for _, tr := range missing {
-		c := found[tr.Number]
+		c := found.Tracks[tr.Number]
 		if len(c) > 0 {
 			n++
 			t.Logf("pista %2d %-40s -> %s [%s %s%dk] %s (%+.0f s, sim %.2f, hueco %v)", tr.Number, tr.Title, c[0].Username, c[0].Ext, "", c[0].BitRate, fmtDur(c[0].Duration), c[0].Diff, c[0].Sim, c[0].FreeSlot)
 		}
 	}
 	t.Logf("candidatos de Soulseek para %d de 11 pistas", n)
+	for _, al := range found.Albums {
+		t.Logf("carpeta %s %s: %d/%d %s hueco=%v cola=%d", al.Username, al.Folder, al.Covered, al.Of, al.Ext, al.FreeSlot, al.Queue)
+	}
 	if n < 6 {
 		t.Fatalf("pocas pistas localizadas en Soulseek: %d", n)
 	}
@@ -156,9 +159,9 @@ func TestCompleteFromSoulseek(t *testing.T) {
 	// Descargar la primera pista que tenga candidato con hueco libre.
 	for _, tr := range missing {
 		var pick *trackSource
-		for i := range found[tr.Number] {
-			if found[tr.Number][i].FreeSlot {
-				pick = &found[tr.Number][i]
+		for i := range found.Tracks[tr.Number] {
+			if found.Tracks[tr.Number][i].FreeSlot {
+				pick = &found.Tracks[tr.Number][i]
 				break
 			}
 		}

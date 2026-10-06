@@ -6,11 +6,24 @@
 // getAlbum, loadAlbums (library.js).
 
 const disc = {
-  stack: [],          // pasos: {type: 'search', q} | {type: 'artist', name, deezerId, mbid}
+  stack: [],          // pasos: {type: 'search', q} | {type: 'artist', name, deezerId, mbid} | {type: 'foryou'}
   seq: 0,             // para descartar respuestas de un paso que ya no se ve
   onlyMissing: false, // discografía: esconder lo que ya se tiene
+  hide: [],           // estilos (etiquetas de Last.fm) que no se quieren ver en las sugerencias
 };
-try { disc.onlyMissing = localStorage.getItem('discOnlyMissing') === '1'; } catch (e) {}
+try {
+  disc.onlyMissing = localStorage.getItem('discOnlyMissing') === '1';
+  disc.hide = JSON.parse(localStorage.getItem('discHide') || '[]');
+} catch (e) {}
+$('#discHide').value = disc.hide.join(', ');
+$('#discHide').onchange = () => {
+  disc.hide = $('#discHide').value.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+  try { localStorage.setItem('discHide', JSON.stringify(disc.hide)); } catch (e) {}
+  const top = disc.stack[disc.stack.length - 1];
+  if (top && top.type !== 'search') discGo(top, false); // vuelve a pintar (de la caché, es rápido)
+};
+// Un sugerido con alguna de las etiquetas ocultas no se enseña.
+const discHidden = a => disc.hide.length && (a.tags || []).some(t => disc.hide.some(h => t.includes(h)));
 
 const kindLabel = { album: 'Discos', ep: 'EPs', live: 'En directo', compile: 'Recopilatorios', single: 'Sencillos' };
 
@@ -29,6 +42,15 @@ $('#libDiscover').onclick = () => openDiscover();
 $('#discBack').onclick = () => { stopPreview(); $('#libDiscoverView').hidden = true; $('#libList').hidden = false; loadAlbums(); };
 $('#discGo').onclick = () => { const q = $('#discQuery').value.trim(); if (q) discGo({ type: 'search', q }, true); };
 $('#discQuery').onkeydown = e => { if (e.key === 'Enter') $('#discGo').click(); };
+$('#discForYou').onclick = () => discGo({ type: 'foryou' }, true);
+
+// Progreso de «para ti» (la primera vez son muchas consultas a Last.fm).
+window.runtime.EventsOn('foryou', p => {
+  const top = disc.stack[disc.stack.length - 1];
+  const el = $('#discBody .foryou-progress');
+  if (!top || top.type !== 'foryou' || !el) return;
+  el.textContent = `cargando… ${p.total ? Math.round(p.done / p.total * 100) + ' %' : ''}`;
+});
 
 async function discGo(step, push) {
   if (push) {
@@ -48,6 +70,14 @@ async function discGo(step, push) {
     } catch (e) { if (my === disc.seq) { body.innerHTML = ''; $('#discErr').textContent = e; } }
     return;
   }
+  if (step.type === 'foryou') {
+    body.innerHTML = '<p class="empty foryou-progress">cargando…</p>';
+    try {
+      const res = await App().ForYou();
+      if (my === disc.seq) renderForYou(res);
+    } catch (e) { if (my === disc.seq) { body.innerHTML = ''; $('#discErr').textContent = e; } }
+    return;
+  }
   body.innerHTML = `<p class="empty">Leyendo la discografía de ${esc(step.name)} (Deezer y MusicBrainz)…</p>`;
   try {
     const d = await App().ArtistDiscography(step.name, step.deezerId || '', step.mbid || '');
@@ -63,7 +93,7 @@ async function discGo(step, push) {
 
 function renderCrumbs() {
   $('#discCrumbs').innerHTML = disc.stack.map((s, i) => {
-    const text = s.type === 'search' ? `«${esc(s.q)}»` : esc(s.name);
+    const text = s.type === 'search' ? `«${esc(s.q)}»` : s.type === 'foryou' ? 'para ti' : esc(s.name);
     return i === disc.stack.length - 1 ? `<b>${text}</b>` : `<a data-i="${i}">${text}</a>`;
   }).join(' › ');
   $('#discCrumbs').querySelectorAll('a').forEach(a => a.onclick = () => {
@@ -101,6 +131,7 @@ function renderDiscography(d) {
         <div class="meta">${a.owned ? `tienes ${a.owned} disco(s) suyo(s)` : 'no tienes nada suyo'}${a.fans ? ` · ${a.fans.toLocaleString()} fans en Deezer` : ''}${a.mbid ? ` · <a href="#" class="mblink">MusicBrainz</a>` : ''}</div>
       </div>
       <span class="spacer"></span>
+      <button class="ghost" id="discRadio" title="radio de este artista y sus parecidos">📻 radio</button>
       <label class="meta"><input type="checkbox" id="discOnlyMissing" ${disc.onlyMissing ? 'checked' : ''}> solo lo que me falta</label>
     </div>
     ${discWarnings(d.warnings)}
@@ -120,6 +151,7 @@ function renderDiscography(d) {
     renderDiscography(d);
     $('#discSimilar').innerHTML = sim; wireArtists(disc.similar || [], $('#discSimilar'));
   };
+  $('#discRadio').onclick = () => { stopPreview(); startRadio(a.name); };
   const singles = $('#discSingles');
   if (singles) singles.onclick = () => { singles.previousElementSibling.hidden = false; singles.remove(); };
   const mb = $('#discBody').querySelector('a.mblink');
@@ -129,31 +161,86 @@ function renderDiscography(d) {
 
 function renderSimilar(sim) {
   // Los que ya están en la colección, al final: esto es para descubrir.
-  const list = [...(sim.artists || [])].sort((x, y) => (x.owned > 0) - (y.owned > 0));
+  const all = sim.artists || [];
+  const list = all.filter(a => !discHidden(a)).sort((x, y) => (x.owned > 0) - (y.owned > 0));
   disc.similar = list;
-  const src = sim.lastfm ? 'Last.fm y Deezer' : 'Deezer (con una API key de Last.fm en Ajustes salen mejores)';
   const box = $('#discSimilar');
   if (!box) return;
-  box.innerHTML = `<h2>Parecidos <span class="meta">${src}</span></h2>${discWarnings(sim.warnings)}` +
-    (list.length ? artistGrid(list) : '<p class="empty">Ninguna fuente sugiere a nadie.</p>');
+  box.innerHTML = `<h2>Parecidos</h2>${discWarnings(sim.warnings)}` + (list.length ? artistGrid(list) : '');
   wireArtists(list, box);
+}
+
+// ---- para ti: a partir de toda la colección ----------------------------------
+// Agrupado por estilo (la primera etiqueta de cada uno), para que lo que más
+// abunda en la colección no tape lo demás. Un estilo con un solo sugerido se
+// junta con el estilo que lo contiene («depressive black metal» → «black
+// metal») o, si no hay, va a «otros».
+function renderForYou(res) {
+  const all = res.artists || [];
+  const list = all.filter(a => !discHidden(a));
+  $('#discMeta').textContent = '';
+  const groups = new Map();
+  for (const a of list) {
+    const k = (a.tags || [])[0] || 'sin etiquetar';
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(a);
+  }
+  for (const [k, l] of [...groups]) {
+    if (l.length > 2) continue;
+    const parent = [...groups.keys()].find(p => p !== k && groups.get(p).length > 2 && k.includes(p));
+    const to = parent || 'otros';
+    if (!groups.has(to)) groups.set(to, []);
+    groups.get(to).push(...l);
+    groups.delete(k);
+  }
+  const ordered = [...groups].sort(([ka, a], [kb, b]) => (ka === 'otros') - (kb === 'otros') || b.length - a.length);
+  $('#discBody').innerHTML = discWarnings(res.warnings) +
+    ordered.map(([k, l], i) => `<div class="fy-group" data-g="${i}"><h2>${esc(k)} <span class="meta">${l.length}</span></h2>${artistGrid(l)}</div>`).join('');
+  $('#discBody').querySelectorAll('.fy-group').forEach(g => wireArtists(ordered[Number(g.dataset.g)][1], g));
 }
 
 // ---- piezas: tarjetas de artistas y de discos --------------------------------
 function artistGrid(list) {
-  return `<div class="grid">${list.map((a, i) => `<div class="card artist" data-i="${i}" title="ver su discografía">
+  return `<div class="grid">${list.map((a, i) => `<div class="card artist ${pv.artist === a.name ? 'playing' : ''}" data-i="${i}" data-name="${esc(a.name)}" title="ver su discografía">
       ${a.picture ? `<img class="thumb" src="${esc(a.picture)}" loading="lazy" alt="">` : '<div class="thumb none">♪</div>'}
       ${a.owned ? `<span class="badge have">tienes ${a.owned}</span>` : ''}
       ${a.match ? `<span class="badge match" title="parecido según ${esc((a.sources || []).join(' y '))}">${Math.round(a.match * 100)}%</span>` : ''}
       <div class="title">${esc(a.name)}</div>
-      <div class="sub">${a.fans ? a.fans.toLocaleString() + ' fans' : (a.sources || []).includes('lastfm') ? 'Last.fm' : ''}</div>
+      <div class="sub">${(a.because || []).length ? `como ${esc(a.because.slice(0, 3).join(', '))}` : a.fans ? a.fans.toLocaleString() + ' fans' : (a.sources || []).includes('lastfm') ? 'Last.fm' : ''}</div>
+      ${(a.tags || []).length ? `<div class="sub tags" title="estilo según Last.fm">${esc(a.tags.join(' · '))}</div>` : ''}
+      ${a.listeners > 0 ? `<div class="sub" title="oyentes en Last.fm">${a.listeners.toLocaleString()} oyentes</div>` : ''}
+      <div class="acts"><button class="ghost listen" title="Escuchar algo suyo para hacerte una idea: lo más escuchado en Deezer, un disco de Bandcamp o, si no, YouTube">▶ escuchar</button><button class="ghost dismiss" title="Ya lo conozco / no me interesa: no volverá a sugerirse">✕</button></div>
     </div>`).join('')}</div>`;
 }
 function wireArtists(list, root = $('#discBody')) {
-  root.querySelectorAll('.card.artist').forEach(c => c.onclick = () => {
+  root.querySelectorAll('.card.artist').forEach(c => {
     const a = list[Number(c.dataset.i)];
-    if (a) discGo({ type: 'artist', name: a.name, deezerId: a.deezerId || '', mbid: a.mbid || '' }, true);
+    if (a) wireArtistCard(c, a);
   });
+}
+function wireArtistCard(c, a) {
+  c.onclick = () => discGo({ type: 'artist', name: a.name, deezerId: a.deezerId || '', mbid: a.mbid || '' }, true);
+  c.querySelector('button.listen').onclick = e => { e.stopPropagation(); previewArtist(a, c); };
+  c.querySelector('button.dismiss').onclick = e => { e.stopPropagation(); dismissArtist(a, c); };
+}
+
+// «Ya lo conozco / no me interesa»: la tarjeta se queda como un aviso con
+// «deshacer» hasta que se vuelva a pintar la lista.
+async function dismissArtist(a, card) {
+  try { await App().DismissArtist(a.name, false); } catch (e) { $('#discErr').textContent = e; return; }
+  card.onclick = null;
+  card.classList.add('dismissed');
+  card.innerHTML = `<div class="title">${esc(a.name)}</div><div class="sub">no volverá a salir</div><div class="acts"><button class="ghost undo">deshacer</button></div>`;
+  card.querySelector('button.undo').onclick = async e => {
+    e.stopPropagation();
+    try { await App().DismissArtist(a.name, true); } catch (err) { $('#discErr').textContent = err; return; }
+    const tmp = document.createElement('div');
+    tmp.innerHTML = artistGrid([a]);
+    const fresh = tmp.querySelector('.card');
+    fresh.dataset.i = card.dataset.i;
+    card.replaceWith(fresh);
+    wireArtistCard(fresh, a);
+  };
 }
 
 function releaseGrid(rels, withArtist) {
@@ -194,44 +281,74 @@ function downloadRelease(r, btn) {
 // Go busca audio del disco (preview.go): Bandcamp entero, Deezer a trozos de
 // 30 s o, si no hay, YouTube pista a pista bajo demanda. Se toca en su
 // propio <audio>, aparte de la cola del reproductor; uno pausa al otro.
-const pv = { rel: null, tracks: [], i: -1, seq: 0, blob: '' };
+const pv = { rel: null, artist: '', tracks: [], i: -1, seq: 0, blob: '' };
 const pvAudio = $('#pvAudio');
 
-async function previewRelease(r) {
+// Escuchar un disco concreto.
+function previewRelease(r) {
+  startPreview({
+    rel: r, title: `${r.artist ? r.artist + ' — ' : ''}${r.title}`, searching: 'cargando…',
+    load: () => App().PreviewRelease(r.id, r.artist || '', r.title),
+    card: $('#discBody').querySelector(`.card.rel[data-id="${CSS.escape(r.id)}"]`),
+  });
+}
+// Escuchar algo de un artista (los parecidos): lo más escuchado en Deezer, un
+// disco suyo de Bandcamp o lo más escuchado en Last.fm vía YouTube.
+function previewArtist(a, card) {
+  startPreview({
+    artist: a.name, title: a.name, searching: 'cargando…',
+    load: () => App().ArtistSample(a.name, a.deezerId || ''), card,
+  });
+}
+
+async function startPreview(o) {
   const my = ++pv.seq;
-  pv.rel = r; pv.tracks = []; pv.i = -1;
+  pv.rel = o.rel || null; pv.artist = o.artist || ''; pv.tracks = []; pv.i = -1;
   $('#discPreview').hidden = false;
-  $('#pvTitle').textContent = `${r.artist ? r.artist + ' — ' : ''}${r.title}`;
-  $('#pvMeta').textContent = 'buscando audio en Bandcamp y Deezer…';
+  $('#pvTitle').textContent = o.title;
+  $('#pvMeta').textContent = o.searching;
   $('#pvTracks').innerHTML = '';
   $('#pvCover').hidden = true;
-  $('#pvGet').onclick = () => downloadRelease(r, $('#pvGet'));
-  $('#pvGet').disabled = false; $('#pvGet').textContent = 'descargar';
+  const get = $('#pvGet');
+  get.disabled = false; get.textContent = 'descargar';
+  get.hidden = !o.rel;
+  if (o.rel) get.onclick = () => downloadRelease(o.rel, get);
   markPlaying();
   try {
-    const p = await App().PreviewRelease(r.id, r.artist || '', r.title);
+    const p = await o.load();
     if (my !== pv.seq) return;
     pv.tracks = p.tracks || [];
     const streams = pv.tracks.some(t => t.stream);
-    const src = p.release.source === r.source ? '' : ` (${sourceLabel[p.release.source] || p.release.source}: «${p.release.title}»)`;
-    $('#pvMeta').textContent = p.full ? 'pistas enteras de Bandcamp' + src
-      : streams ? 'fragmentos de 30 s de Deezer' + src
-      : 'ni Bandcamp ni Deezer lo tienen: cada pista se busca en YouTube al pulsarla (unos segundos)';
-    const cover = coverURL(p.release, false) || coverURL(r, false);
+    const label = sourceLabel[p.release.source] || p.release.source;
+    const src = o.rel && p.release.source === o.rel.source ? '' : ` (${label}: «${p.release.title}»)`;
+    $('#pvMeta').textContent = p.top ? (streams ? 'Deezer · 30 s' : 'YouTube')
+      : p.full ? 'Bandcamp' + src
+      : streams ? 'Deezer · 30 s' + src
+      : 'YouTube';
+    // La muestra de un artista que es un disco de Bandcamp se puede bajar.
+    if (!o.rel && !p.top && p.release.id) {
+      const rel = { ...p.release, artist: p.release.artist || o.artist };
+      get.hidden = false; get.onclick = () => downloadRelease(rel, get);
+      $('#pvTitle').textContent = `${o.artist} — ${p.release.title}`;
+    }
+    const cover = coverURL(p.release, false) || (o.rel ? coverURL(o.rel, false) : '');
     if (cover) { $('#pvCover').src = cover; $('#pvCover').hidden = false; }
-    // Si la tarjeta se había quedado sin carátula, la que ha aparecido ahora.
-    const ph = cover && $('#discBody').querySelector(`.card.rel[data-id="${CSS.escape(r.id)}"] .thumb.none`);
+    // Si la tarjeta se había quedado sin imagen, la carátula que ha aparecido.
+    const ph = cover && o.card && o.card.querySelector('.thumb.none');
     if (ph) ph.replaceWith(Object.assign(document.createElement('img'), { className: 'thumb', src: cover, alt: '' }));
     renderPvTracks();
+    // Empieza solo con lo que suena sin esperar; la muestra de un artista
+    // también con YouTube, que para eso se ha pedido.
     const first = pv.tracks.findIndex(t => t.stream);
     if (first >= 0) pvPlay(first);
+    else if (p.top && pv.tracks.length) pvPlay(0);
   } catch (e) { if (my === pv.seq) $('#pvMeta').textContent = 'no he podido buscar audio: ' + e; }
 }
 
 function renderPvTracks() {
   $('#pvTracks').innerHTML = pv.tracks.map((t, i) => `<div class="pvt ${i === pv.i ? 'now' : ''}" data-i="${i}" title="${t.stream ? '' : 'buscar en YouTube'}">
       <span class="n">${i === pv.i && !pvAudio.paused ? '▶' : t.number || i + 1}</span>
-      <span class="t">${esc(t.title)}${t.stream ? '' : ' <span class="src deezer">YouTube</span>'}${t.state ? ` <span class="dim">${esc(t.state)}</span>` : ''}</span>
+      <span class="t">${esc(t.title)}${t.album ? ` <span class="dim">· ${esc(t.album)}</span>` : ''}${t.stream ? '' : ' <span class="src deezer">YouTube</span>'}${t.state ? ` <span class="dim">${esc(t.state)}</span>` : ''}</span>
       <span class="meta">${t.length ? fmtDur(t.length) : ''}</span>
     </div>`).join('');
   $('#pvTracks').querySelectorAll('.pvt').forEach(el => el.onclick = () => pvPlay(Number(el.dataset.i)));
@@ -249,7 +366,7 @@ async function pvPlay(i) {
     else {
       if (!t.local) {
         t.state = 'buscando en YouTube…'; renderPvTracks();
-        t.local = await App().PreviewYouTube(t.artist || (pv.rel && pv.rel.artist) || '', t.title);
+        t.local = await App().PreviewYouTube(t.artist || (pv.rel && pv.rel.artist) || pv.artist, t.title);
       }
       src = '/media?p=' + encodeURIComponent(t.local);
     }
@@ -274,12 +391,13 @@ async function pvPlay(i) {
 function stopPreview() {
   pv.seq++;
   pvAudio.pause();
-  pv.rel = null;
+  pv.rel = null; pv.artist = '';
   $('#discPreview').hidden = true;
   markPlaying();
 }
 function markPlaying() {
   $('#discBody').querySelectorAll('.card.rel').forEach(c => c.classList.toggle('playing', !!pv.rel && pv.rel.id === c.dataset.id));
+  $('#discBody').querySelectorAll('.card.artist').forEach(c => c.classList.toggle('playing', !!pv.artist && pv.artist === c.dataset.name));
 }
 
 $('#pvClose').onclick = stopPreview;
@@ -290,8 +408,7 @@ pvAudio.onended = () => {
   if (next >= 0) pvPlay(next); else renderPvTracks();
 };
 pvAudio.onplay = () => {
-  // El reproductor de la app, en pausa mientras se escucha esto.
-  if (typeof audio !== 'undefined' && !audio.paused) audio.pause();
+  soloAudio(pvAudio); // el reproductor y la radio, en pausa mientras se escucha esto
   renderPvTracks();
 };
 pvAudio.onpause = renderPvTracks;

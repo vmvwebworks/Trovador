@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -31,6 +32,113 @@ type previewResult struct {
 	Release mbRelease `json:"release"` // de dónde sale el audio (título, fuente, carátula)
 	Tracks  []mbTrack `json:"tracks"`  // con Stream si se pueden escuchar
 	Full    bool      `json:"full"`    // pistas enteras (Bandcamp) o fragmentos (Deezer)
+	Top     bool      `json:"top"`     // muestra de un artista: sus pistas más escuchadas, no un disco
+}
+
+// ArtistSample busca algo que escuchar de un artista para hacerse una idea:
+// sus pistas más escuchadas en Deezer (30 s cada una); si no está, uno de
+// sus discos en Bandcamp (entero); y si tampoco, sus canciones más
+// escuchadas según Last.fm, sin audio: la ventana las busca en YouTube.
+func (a *App) ArtistSample(name, deezerID string) (previewResult, error) {
+	ctx := a.ctx
+	name = strings.TrimSpace(name)
+	var (
+		wg     sync.WaitGroup
+		dz, bc *previewResult
+	)
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		id := deezerID
+		if id == "" {
+			ar, ok := deezerFindArtist(ctx, name)
+			if !ok {
+				return
+			}
+			id = ar.DeezerID
+		}
+		if tracks, err := deezerTop(ctx, id); err == nil && len(tracks) > 0 {
+			dz = &previewResult{Release: mbRelease{Source: srcDeezer, Title: "lo más escuchado", Artist: name}, Tracks: tracks, Top: true}
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		rels, err := searchBandcamp(ctx, name, "")
+		if err != nil {
+			return
+		}
+		for i, r := range rels {
+			if i >= 6 || normalizeName(r.Artist) != normalizeName(name) {
+				continue
+			}
+			if d, err := getDetail(ctx, r.ID, ""); err == nil && hasStreams(d) {
+				d.Release.CoverURL = firstNonEmpty(d.Release.CoverURL, r.CoverURL)
+				bc = &previewResult{Release: d.Release, Tracks: d.Tracks, Full: true}
+				return
+			}
+		}
+	}()
+	wg.Wait()
+	switch {
+	case dz != nil:
+		return *dz, nil
+	case bc != nil:
+		return *bc, nil
+	}
+
+	a.mu.Lock()
+	key := strings.TrimSpace(a.settings.LastfmKey)
+	a.mu.Unlock()
+	if key != "" {
+		if tracks, err := lastfmTopTracks(ctx, key, name); err == nil && len(tracks) > 0 {
+			return previewResult{Release: mbRelease{Source: "lastfm", Title: "lo más escuchado", Artist: name}, Tracks: tracks, Top: true}, nil
+		}
+	}
+	return previewResult{}, fmt.Errorf("no encuentro nada de «%s» en Deezer ni en Bandcamp", name)
+}
+
+// deezerTop: las pistas más escuchadas del artista, con su fragmento.
+func deezerTop(ctx context.Context, id string) ([]mbTrack, error) {
+	top, err := deezerTopAlbums(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	var out []mbTrack
+	for _, t := range top {
+		if t.preview == "" {
+			continue
+		}
+		out = append(out, mbTrack{Number: len(out) + 1, Title: t.title, Artist: t.artist, Length: t.length, Stream: t.preview, Album: t.album})
+	}
+	return out, nil
+}
+
+// lastfmTopTracks: las canciones más escuchadas del artista según Last.fm.
+func lastfmTopTracks(ctx context.Context, key, name string) ([]mbTrack, error) {
+	if err := lfWait(ctx); err != nil {
+		return nil, err
+	}
+	params := url.Values{"method": {"artist.gettoptracks"}, "api_key": {key}, "format": {"json"}, "limit": {"10"}, "autocorrect": {"1"}, "artist": {name}}
+	var raw struct {
+		Error   int    `json:"error"`
+		Message string `json:"message"`
+		Top     struct {
+			Track []struct {
+				Name string `json:"name"`
+			} `json:"track"`
+		} `json:"toptracks"`
+	}
+	if err := getJSON(ctx, http.MethodGet, lastfmBase+"?"+params.Encode(), nil, nil, &raw); err != nil {
+		return nil, err
+	}
+	if raw.Error != 0 {
+		return nil, fmt.Errorf("%s", raw.Message)
+	}
+	var out []mbTrack
+	for _, t := range raw.Top.Track {
+		out = append(out, mbTrack{Number: len(out) + 1, Title: t.Name, Artist: name})
+	}
+	return out, nil
 }
 
 // PreviewRelease busca audio para escuchar el disco `key`. Si no hay en
@@ -99,29 +207,42 @@ func hasStreams(d mbReleaseDetail) bool {
 // pedirla a trozos, como hace yt-dlp, YouTube la sirve a cámara lenta.
 // Mejor M4A (AAC), que WebView2 reproduce seguro.
 func (a *App) PreviewYouTube(artist, title string) (string, error) {
+	p, _, err := a.youtubeAudio(artist, title)
+	return p, err
+}
+
+// youtubeAudio hace el trabajo de PreviewYouTube y además devuelve la
+// miniatura del vídeo (la portada de la radio cuando no se sabe el disco).
+func (a *App) youtubeAudio(artist, title string) (path, thumb string, err error) {
 	query := strings.TrimSpace(artist + " " + title)
 	dir := filepath.Join(os.TempDir(), "trovador-escucha")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return "", err
+		return "", "", err
 	}
 	cleanPreviews(dir, 8)
+	// Ruta y miniatura en una línea, separadas por «|» (que no puede ir en
+	// una ruta de Windows).
 	cmd := exec.CommandContext(a.ctx, toolPath("yt-dlp.exe"), "--no-warnings", "--no-playlist", "--no-part",
-		"-f", "bestaudio[ext=m4a]/bestaudio", "--print", "after_move:filepath",
+		"-f", "bestaudio[ext=m4a]/bestaudio", "--print", "after_move:%(filepath)s|%(thumbnail)s",
 		"-o", filepath.Join(dir, "%(id)s.%(ext)s"), "ytsearch1:"+query)
 	hideWindow(cmd)
 	cmd.Env = append(os.Environ(), "PYTHONUTF8=1", "PYTHONIOENCODING=utf-8")
 	out, err := cmd.Output()
 	if err != nil {
-		return "", fmt.Errorf("YouTube: %w", err)
+		return "", "", fmt.Errorf("YouTube: %w", err)
 	}
-	p := strings.TrimSpace(string(out))
-	if i := strings.LastIndex(p, "\n"); i >= 0 {
-		p = strings.TrimSpace(p[i+1:])
+	line := strings.TrimSpace(string(out))
+	if i := strings.LastIndex(line, "\n"); i >= 0 {
+		line = strings.TrimSpace(line[i+1:])
 	}
-	if !fileExists(p) {
-		return "", fmt.Errorf("YouTube no da audio para «%s»", query)
+	path, thumb, _ = strings.Cut(line, "|")
+	if thumb == "NA" {
+		thumb = ""
 	}
-	return p, nil
+	if !fileExists(path) {
+		return "", "", fmt.Errorf("YouTube no da audio para «%s»", query)
+	}
+	return path, thumb, nil
 }
 
 // cleanPreviews deja en la carpeta temporal solo las `keep` escuchas más

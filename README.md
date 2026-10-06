@@ -123,9 +123,20 @@ localiza las pistas en las carpetas de otros usuarios, con formato, bitrate y
 si hay hueco libre), en **Bandcamp** (si el disco está allí, la URL exacta
 de cada pista: yt-dlp la baja como un vídeo) y en **YouTube** (yt-dlp,
 pista a pista), y propone candidatos ordenados por duración y título;
-Soulseek delante, luego Bandcamp, FLAC y hueco libre primero. Se marcan y *Descargar marcadas* las baja a la carpeta del
-álbum, nombradas, etiquetadas y con la carátula (las de Soulseek esperan a
-que llegue la transferencia; con cola en el otro extremo pueden tardar).
+Soulseek delante, luego Bandcamp, FLAC y hueco libre primero.
+
+Si en Soulseek hay **carpetas con el disco** (la copia de un usuario que tiene
+todas las pistas, o casi, con las duraciones cuadrando), salen arriba como
+opciones de disco completo; la mejor que lo tiene todo viene marcada y
+marca sus pistas. Las pistas que ya tienen fuente en Soulseek o Bandcamp no
+se buscan en YouTube (cada una tiene *buscar también en YouTube*). Lo que
+se marque a mano en una pista manda sobre la carpeta.
+
+*Descargar marcadas* las baja a la carpeta del álbum, nombradas, etiquetadas
+y con la carátula. Las de Soulseek se piden de golpe a cada usuario (una sola
+cola en su lado; varios usuarios a la vez) y se van curando según llegan;
+una pista se da por perdida tras 15 minutos sin que su transferencia se
+mueva.
 
 **Mejorar en Soulseek**: en la ficha de un disco con edición elegida, busca
 el disco en Soulseek y, por cada pista que tienes, ofrece versiones claramente
@@ -229,9 +240,43 @@ MusicBrainz (discos, EPs, directos, recopilatorios y, plegados, sencillos),
 con lo que tienes marcado y la opción *solo lo que me falta*. Debajo, sus
 **parecidos**: de Deezer siempre y de Last.fm si hay API key en Ajustes
 (gratuita: last.fm/api/account/create; el *shared secret* no hace falta).
-Los que ya tienes van al final. Desde cada uno se sigue saltando, y las
+Los que ya tienes van al final. Cada uno tiene **▶ escuchar** para hacerse
+una idea sin entrar: lo más escuchado en Deezer (30 s por pista), si no está
+ahí uno de sus discos de Bandcamp (entero, y se puede descargar desde el
+panel), y si tampoco, lo más escuchado según Last.fm buscado en YouTube.
+Desde cada uno se sigue saltando, y las
 migas de arriba llevan de vuelta. En la ficha de un disco, **discografía y
 parecidos** entra directamente por su artista.
+
+Con Last.fm, los parecidos pasan además por un **filtro de estilo**: se
+comparan las etiquetas de Last.fm del artista de partida con las de cada
+sugerido (sin contar las que no dicen nada, como «seen live», y dando poco
+peso a países y décadas) y se descartan los que no comparten estilo. Cada
+tarjeta enseña sus etiquetas. En la caja **ocultar estilos** se pueden poner
+etiquetas separadas por comas (p. ej. `pop, nsbm`): lo que las lleve, aunque
+sea como parte de otra («pop» oculta también «synthpop»), no se enseña.
+
+**Para ti** recomienda a partir de tu gusto, no de cuántos discos tienes de
+cada cual. Pesan, de más a menos: tus **favoritos ♥** del reproductor (hasta
+dos discos por artista), lo que **escuchas** en el reproductor (cuenta cada
+pista oída hasta la mitad, como el scrobbling, aunque no haya Last.fm
+conectado; se guarda en `plays.json`) y tus artistas más escuchados en
+Last.fm si lo has conectado, lo **añadido hace poco** (solo si la fecha de
+las carpetas lo distingue: tras renombrar o etiquetar toda la colección no
+dice nada y no cuenta) y, poco, lo que hay en la colección. Arriba se ve de
+qué artistas parte.
+
+De los 100 que más pesan se piden a Last.fm sus parecidos y se suman (pesa
+más el que se parece a varios de los tuyos); se quita lo que ya tienes, se
+filtra cada uno por el estilo de los artistas tuyos que lo recomiendan, y
+**lo muy conocido baja** según sus oyentes en Last.fm (con 20.000 vale la
+mitad; con medio millón, casi nada), porque eso ya lo conoces. Con **✕** en
+una tarjeta (también en Parecidos) dices «ya lo conozco / no me interesa» y
+no vuelve a salir (`dismissed.json`; se puede deshacer en el momento). Sale
+agrupado por estilo, y cada tarjeta dice a quién se parece («como Ungfell,
+Peste Noire…»), su estilo y sus oyentes. La primera vez son unas cuantas
+consultas (Last.fm admite 5 por segundo: un minuto o dos); lo preguntado se
+guarda un mes en `lastfm-cache.json` y después tarda segundos.
 
 Para no confundir a dos grupos con el mismo nombre («Frost» hay varios), el
 artista de MusicBrainz se saca de sus discos en la colección o de la
@@ -464,6 +509,51 @@ la primera vez la cuadrícula se rellena disco a disco (ffmpeg/ffprobe por
 carpeta); desde la segunda sale al instante. Si cambia algo en la carpeta
 de un disco, su tarjeta se recalcula. La Biblioteca usa la misma caché.
 
+### Radio
+
+La pestaña **Radio** es para cuando no apetece rebuscar: va poniendo, una
+detrás de otra, canciones de los artistas de **Para ti** (lo que encaja con
+tus favoritos, lo que escuchas y lo que marcas aquí). Cada canción sale de la
+mejor fuente que la tenga entera: una pista de uno de sus discos en
+**Bandcamp**; si no está, una de sus más escuchadas en Deezer, entera desde
+**YouTube**; si eso falla, el fragmento de 30 s de Deezer; y para los grupos
+que no están en Deezer, una de sus más escuchadas según Last.fm, desde
+YouTube. Mientras suena una se prepara la siguiente. Cada artista suena una
+vez por tanda, y los que más encajan salen más.
+
+- **♥ me gusta** guarda la canción con su disco en **Te han gustado**
+  (`likes.json`), y el artista pasa a pesar en tu gusto: la radio y Para ti
+  van aprendiendo.
+- **✕ no me gusta** salta y descarta al artista (como el ✕ de Descubrir).
+- **⏭ siguiente** salta sin más; **ver artista** abre su discografía en
+  Descubrir. Espacio pausa y sigue.
+- En **Te han gustado**, *descargar el disco* lo crea en la carpeta de
+  descargas y abre el panel de Completar (como *descargar* en Descubrir); si
+  no se sabe de qué disco es (las de Last.fm + YouTube), *buscar el disco*
+  abre su discografía.
+
+**Radio de un artista**: con 📻 en su página de Descubrir, o escribiéndolo
+en la caja de arriba de la pestaña, suenan él y sus parecidos (los de
+Descubrir, con su filtro de estilo y sin los descartados). Arriba se ve qué
+radio suena; ✕ vuelve a la de Para ti.
+
+Solo suena un audio a la vez: si arranca el reproductor (o una escucha de
+Descubrir), la radio se calla, y al revés.
+
+### Scrobbling a Last.fm
+
+Lo que suena en el reproductor se puede enviar a tu perfil de Last.fm. En
+**Ajustes** hacen falta la API key y el *shared secret* de tu cuenta de API
+(last.fm/api/account/create); con los dos, **conectar con Last.fm** abre el
+navegador para que des permiso a Trovador una sola vez, y la app se queda
+con la sesión (no caduca; *desconectar* la olvida).
+
+Como en Last.fm, cuenta una pista de más de 30 s cuando se ha escuchado de
+verdad la mitad o 4 minutos (lo saltado con la barra no cuenta), y al empezar
+cada una sale como «escuchando ahora». Las escuchas de Descubrir no se
+envían. Si no hay conexión se guardan en `scrobbles.json` y salen con la
+siguiente o al abrir la app.
+
 ## Soulseek
 
 La tercera pestaña es un cliente Soulseek. El protocolo lo lleva
@@ -525,7 +615,11 @@ fuzzy.go            parecido de nombres (Levenshtein + palabras) y emparejamient
 library.go          Biblioteca: escaneo con ffprobe, comparación, carátula, corte y etiquetado con ffmpeg
 batch.go            Biblioteca en lote: detección de discos, búsqueda de candidatas, aplicación
 discover.go         descubrir: búsqueda general, discografía (Deezer + MusicBrainz) y parecidos (Deezer + Last.fm) cotejados con la colección
+lastfm.go           Last.fm en Descubrir: etiquetas y filtro de estilo, «para ti», caché en disco y ritmo de peticiones
+taste.go            el gusto para «para ti»: favoritos, escuchas, Last.fm, recientes; descartados; oyentes
+radio.go            radio de recomendados: elegir artista de «para ti», canción de Bandcamp / Deezer+YouTube / Last.fm+YouTube; me gusta
 preview.go          escuchar antes de bajar: audio de Bandcamp (entero) o Deezer (30 s), YouTube a petición; /preview?u= lo reenvía a la ventana
+scrobble.go         scrobbling a Last.fm: autorización (token → sesión), peticiones firmadas, cola de escuchas pendientes
 review.go           revisión: confirmar propuestas, elegir candidata o URL de MusicBrainz, buscar fuera
 bytracks.go         identificar un disco por sus canciones (grabaciones → ediciones)
 origins.go          orígenes: de qué disco viene cada fichero de una carpeta mezclada
@@ -550,7 +644,7 @@ carry.go            llevarse discos a otra carpeta (USB del coche): nombres FAT3
 tools/cabinet       prepara las fotos: gramola (cristal y panel), pletina (hueco), caja y cinta, gramófono (plato), disco y funda
 frontend/index.html la interfaz (pestañas Descargas y Biblioteca)
 frontend/player.js  pestaña Reproductor, cola y barra de reproducción
-frontend/downloads.js, library.js, discover.js, soulseek.js  lógica de cada pestaña; hablan con Go vía window.go.main.App
+frontend/downloads.js, library.js, discover.js, soulseek.js, radio.js  lógica de cada pestaña; hablan con Go vía window.go.main.App
 fuzzy_test.go       tests unitarios del parecido y el emparejamiento (go test ./...)
 downloader_test.go, library_test.go  tests de integración (etiqueta `integration`)
 wails.json          configuración de Wails
