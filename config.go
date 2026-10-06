@@ -16,8 +16,16 @@ type settings struct {
 	Format       string `json:"format"`       // mp3, m4a, opus, flac...
 	Quality      string `json:"quality"`      // "0" (mejor) o un bitrate como "192K"
 	DiscogsToken string `json:"discogsToken"` // token personal de Discogs (opcional)
+	LastfmKey    string `json:"lastfmKey"`    // API key de Last.fm para los artistas parecidos (opcional)
 	FolderIcons  bool   `json:"folderIcons"`  // crear/actualizar el icono de carpeta del Explorador al aplicar cambios
 	Collection   string `json:"collection"`   // carpeta de la colección (reproductor); vacío = la de descargas
+
+	// Scrobbling a Last.fm (scrobble.go): el secret firma las peticiones; la
+	// sesión la da Last.fm al autorizar y solo la toca Go.
+	LastfmSecret  string `json:"lastfmSecret"`
+	LastfmSession string `json:"lastfmSession"`
+	LastfmUser    string `json:"lastfmUser"`
+	Scrobble      bool   `json:"scrobble"`
 
 	// Soulseek (pestaña Soulseek, motor slskd)
 	SlskUser  string `json:"slskUser"`

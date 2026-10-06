@@ -287,6 +287,7 @@ func deezerDetail(ctx context.Context, id string) (mbReleaseDetail, error) {
 			Duration float64 `json:"duration"`
 			Position int     `json:"track_position"`
 			Disk     int     `json:"disk_number"`
+			Preview  string  `json:"preview"` // fragmento de 30 s en MP3
 			Artist   struct {
 				Name string `json:"name"`
 			} `json:"artist"`
@@ -300,7 +301,7 @@ func deezerDetail(ctx context.Context, id string) (mbReleaseDetail, error) {
 		Date: album.ReleaseDate, Format: "Digital", CoverURL: album.CoverXL,
 	}}
 	for i, t := range tracks.Data {
-		tr := mbTrack{Number: i + 1, Position: t.Position, Medium: t.Disk, Title: t.Title, Artist: t.Artist.Name, Length: t.Duration}
+		tr := mbTrack{Number: i + 1, Position: t.Position, Medium: t.Disk, Title: t.Title, Artist: t.Artist.Name, Length: t.Duration, Stream: t.Preview}
 		d.TotalLength += tr.Length
 		d.Tracks = append(d.Tracks, tr)
 	}
@@ -381,10 +382,11 @@ func bandcampDetail(ctx context.Context, albumURL string) (mbReleaseDetail, erro
 			ReleaseDate string `json:"release_date"`
 		} `json:"current"`
 		TrackInfo []struct {
-			Title    string  `json:"title"`
-			Duration float64 `json:"duration"`
-			TrackNum int     `json:"track_num"`
-			Link     string  `json:"title_link"`
+			Title    string            `json:"title"`
+			Duration float64           `json:"duration"`
+			TrackNum int               `json:"track_num"`
+			Link     string            `json:"title_link"`
+			File     map[string]string `json:"file"` // {"mp3-128": url} si se puede escuchar entera
 		} `json:"trackinfo"`
 	}
 	if err := json.Unmarshal([]byte(html.UnescapeString(string(m[1]))), &tr); err != nil {
@@ -398,7 +400,7 @@ func bandcampDetail(ctx context.Context, albumURL string) (mbReleaseDetail, erro
 		d.Release.CoverURL = string(og[1])
 	}
 	for i, t := range tr.TrackInfo {
-		track := mbTrack{Number: i + 1, Position: t.TrackNum, Medium: 1, Title: t.Title, Length: t.Duration, URL: bandcampTrackURL(albumURL, t.Link)}
+		track := mbTrack{Number: i + 1, Position: t.TrackNum, Medium: 1, Title: t.Title, Length: t.Duration, URL: bandcampTrackURL(albumURL, t.Link), Stream: t.File["mp3-128"]}
 		d.TotalLength += track.Length
 		d.Tracks = append(d.Tracks, track)
 	}

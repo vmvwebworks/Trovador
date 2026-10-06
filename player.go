@@ -36,12 +36,17 @@ var audioMIME = map[string]string{
 	".wma": "audio/x-ms-wma", ".ape": "audio/ape", ".wv": "audio/wavpack", ".aiff": "audio/aiff", ".aif": "audio/aiff", ".mpc": "audio/musepack",
 }
 
-// mediaHandler sirve /media?p=<ruta absoluta de un fichero de audio> y
-// /thumb/<fichero> (las miniaturas de la caché de tarjetas).
+// mediaHandler sirve /media?p=<ruta absoluta de un fichero de audio>,
+// /thumb/<fichero> (las miniaturas de la caché de tarjetas) y /preview
+// (escuchar antes de bajar, preview.go).
 func (a *App) mediaHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if name, ok := strings.CutPrefix(r.URL.Path, "/thumb/"); ok {
 			serveThumb(w, r, name)
+			return
+		}
+		if r.URL.Path == "/preview" { // escuchar antes de bajar (preview.go)
+			previewHandler(w, r)
 			return
 		}
 		if r.URL.Path != "/media" {

@@ -2,6 +2,7 @@ package main
 
 import (
 	"math"
+	"strings"
 	"testing"
 )
 
@@ -154,6 +155,44 @@ func TestMatchSoulseekCandidates(t *testing.T) {
 	// Pista 3: el bootleg dura 62 s más; se ofrece (título parecido) pero con Δ grande.
 	if c := got[3]; len(c) != 1 || math.Abs(c[0].Diff-62) > 0.1 {
 		t.Fatalf("pista 3: %+v", c)
+	}
+}
+
+func TestMatchSoulseekAlbums(t *testing.T) {
+	missing := []mbTrack{
+		{Number: 1, Title: "Uno", Length: 100},
+		{Number: 2, Title: "Dos", Length: 200},
+		{Number: 3, Title: "Tres", Length: 300},
+	}
+	f := func(dir, name string, length float64) slskFile {
+		return slskFile{Filename: dir + `\` + name, Name: name, Folder: dir[strings.LastIndex(dir, `\`)+1:], Size: 1e6, Length: length}
+	}
+	res := slskSearch{Responses: []slskResponse{
+		// Entero en FLAC, aunque con cola; en otra carpeta suya, una pista suelta.
+		{Username: "entero", QueueLength: 3, Files: []slskFile{
+			f(`@@a\Disco [FLAC]`, "01 Uno.flac", 100), f(`@@a\Disco [FLAC]`, "02 Dos.flac", 201), f(`@@a\Disco [FLAC]`, "03 Tres.flac", 299),
+			f(`@@a\Varios`, "Dos.mp3", 200),
+		}},
+		// Dos de tres, con hueco: también vale, detrás.
+		{Username: "casi", FreeSlot: true, Files: []slskFile{f(`@@b\Disco`, "1 Uno.mp3", 100), f(`@@b\Disco`, "2 Dos.mp3", 200)}},
+		// Un directo: los títulos cuadran pero las duraciones no. No es el disco.
+		{Username: "directo", FreeSlot: true, Files: []slskFile{f(`@@c\Live`, "Uno.mp3", 140), f(`@@c\Live`, "Dos.mp3", 260), f(`@@c\Live`, "Tres.mp3", 350)}},
+	}}
+	got := matchSoulseekAlbums(res, "Disco", missing)
+	if len(got) != 2 {
+		t.Fatalf("carpetas = %+v", got)
+	}
+	a := got[0]
+	if a.Username != "entero" || a.Covered != 3 || a.Ext != "flac" || a.Folder != `@@a\Disco [FLAC]` {
+		t.Errorf("primera = %+v", a)
+	}
+	for n, name := range map[int]string{1: "01 Uno.flac", 2: "02 Dos.flac", 3: "03 Tres.flac"} {
+		if a.Picks[n].Title != name {
+			t.Errorf("pista %d = %q, quería %q", n, a.Picks[n].Title, name)
+		}
+	}
+	if got[1].Username != "casi" || got[1].Covered != 2 {
+		t.Errorf("segunda = %+v", got[1])
 	}
 }
 

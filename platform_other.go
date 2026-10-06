@@ -25,3 +25,10 @@ func freeSpace(dir string) int64 {
 	}
 	return int64(st.Bavail) * int64(st.Bsize)
 }
+
+// tieToApp: fuera de Windows no hay job objects; los procesos hijos no se
+// atan a la app.
+func tieToApp(cmd *exec.Cmd) error { return nil }
+
+// killOrphans: en Linux no se buscan restos de otra sesión.
+func killOrphans(exe string) int { return 0 }

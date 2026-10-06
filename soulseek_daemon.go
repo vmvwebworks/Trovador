@@ -86,6 +86,12 @@ func (s *slskd) start(a *App, user, pass, share, downloads string, port int) err
 		"--slsk-listen-port", strconv.Itoa(port),
 		"--slsk-description", "Trovador (slskd)",
 	}
+	// Un slskd de una sesión anterior que no se pudo parar (la app se cerró
+	// de golpe) seguiría ocupando el puerto con otra clave de API: el nuevo
+	// se cerraría al ver que «ya hay uno» y el viejo rechazaría todo.
+	if n := killOrphans(tools.Path("slskd.exe")); n > 0 {
+		a.libLog("soulseek: cerrado un slskd que había quedado de otra sesión")
+	}
 	cmd := exec.Command(tools.Path("slskd.exe"), args...)
 	// Los secretos van por variables de entorno y no como argumentos: la
 	// línea de órdenes de un proceso la puede leer cualquier usuario del
@@ -103,6 +109,10 @@ func (s *slskd) start(a *App, user, pass, share, downloads string, port int) err
 	cmd.Stdout, cmd.Stderr = s.log, s.log
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("no puedo arrancar slskd: %w", err)
+	}
+	// Que muera con la app aunque esta no llegue a pararlo.
+	if err := tieToApp(cmd); err != nil {
+		a.libLog("soulseek: no he podido atar slskd a la app (%v); si la app se cierra de golpe, puede quedarse en marcha", err)
 	}
 	s.cmd = cmd
 	go func() {

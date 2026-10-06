@@ -73,6 +73,7 @@ func (a *App) startup(ctx context.Context) {
 	a.store = newJobStore(func() { a.emit("jobs") })
 	a.store.onFinish = a.afterDownload
 	go a.prepareTools()
+	go a.flushScrobbles() // escuchas que no se pudieron enviar la última vez
 }
 
 // shutdown: cancelar descargas en curso y parar slskd para no dejar
@@ -127,8 +128,9 @@ func (a *App) State() appState {
 // SaveSettings guarda los ajustes de la pestaña Descargas y devuelve los
 // ajustes completos tal como quedan. De lo que manda la ventana solo se toman
 // esos campos: la colección y los de Soulseek los guardan sus propias
-// pestañas, y la copia que tiene la ventana puede ser vieja (si no, elegir la
-// colección y luego cambiar el formato devolvería la colección anterior).
+// pestañas, la sesión de Last.fm la gestiona scrobble.go, y la copia que tiene
+// la ventana puede ser vieja (si no, elegir la colección y luego cambiar el
+// formato devolvería la colección anterior).
 func (a *App) SaveSettings(in settings) (settings, error) {
 	if strings.TrimSpace(in.OutDir) == "" {
 		return settings{}, fmt.Errorf("la carpeta de destino no puede estar vacía")
@@ -137,7 +139,7 @@ func (a *App) SaveSettings(in settings) (settings, error) {
 	defer a.mu.Unlock()
 	s := a.settings
 	s.OutDir, s.Format, s.Quality = in.OutDir, in.Format, in.Quality
-	s.DiscogsToken, s.FolderIcons = in.DiscogsToken, in.FolderIcons
+	s.DiscogsToken, s.LastfmKey, s.FolderIcons = in.DiscogsToken, in.LastfmKey, in.FolderIcons
 	s.Workers = min(max(in.Workers, 1), 8)
 	if err := s.save(); err != nil {
 		return settings{}, err

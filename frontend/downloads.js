@@ -57,6 +57,9 @@ function renderSettings() {
   $('#format').value = settings.format;
   $('#quality').value = settings.quality;
   $('#discogsToken').value = settings.discogsToken || '';
+  $('#lastfmKey').value = settings.lastfmKey || '';
+  $('#lastfmSecret').value = settings.lastfmSecret || '';
+  refreshLastfm();
   $('#folderIcons').checked = settings.folderIcons !== false;
 }
 async function saveSettings(patch) {
@@ -154,17 +157,64 @@ function scheduleRefresh() {
 })();
 
 // ---- pestañas ------------------------------------------------------------
-document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => {
-  document.querySelectorAll('.tabs button').forEach(x => x.classList.toggle('active', x === b));
-  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.id === 'tab-' + b.dataset.tab));
-  if (b.dataset.tab === 'library' && window.libOnShow) window.libOnShow();
-  if (b.dataset.tab === 'soulseek' && window.slskOnShow) window.slskOnShow();
-  document.body.classList.toggle('wide', b.dataset.tab === 'player'); // el reproductor aprovecha el ancho
-  if (b.dataset.tab === 'player' && window.plOnShow) window.plOnShow();
-});
+document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => showTab(b.dataset.tab));
+function showTab(tab) {
+  document.querySelectorAll('.tabs button').forEach(x => x.classList.toggle('active', x.dataset.tab === tab));
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.id === 'tab-' + tab));
+  if (tab === 'library' && window.libOnShow) window.libOnShow();
+  if (tab === 'soulseek' && window.slskOnShow) window.slskOnShow();
+  document.body.classList.toggle('wide', tab === 'player'); // el reproductor aprovecha el ancho
+  if (tab === 'player' && window.plOnShow) window.plOnShow();
+  if (tab === 'radio' && window.radioOnShow) window.radioOnShow();
+}
+
+// Solo suena un <audio> a la vez (reproductor, escucha de Descubrir, radio):
+// el que empieza calla a los demás.
+const soloAudio = el => document.querySelectorAll('audio').forEach(x => x !== el && !x.paused && x.pause());
 
 // ---- token de Discogs (Biblioteca) ---------------------------------------
 $('#saveDiscogs').onclick = () => saveSettings({ discogsToken: $('#discogsToken').value.trim() });
+$('#saveLastfm').onclick = async () => { await saveSettings({ lastfmKey: $('#lastfmKey').value.trim() }); refreshLastfm(); };
+
+// ---- scrobbling a Last.fm --------------------------------------------------
+// El secret y la sesión los guarda Go (scrobble.go); aquí solo se enseña el
+// estado y se lleva la conexión: Go abre last.fm en el navegador y, mientras
+// el usuario no da permiso, se le vuelve a preguntar cada 3 s.
+function renderLastfm(st) {
+  const msg = !st.hasKey ? 'pon antes la API key'
+    : !st.hasSecret ? 'falta el shared secret'
+    : st.connected ? `conectado como <b>${esc(st.user)}</b>` + (st.pending ? ` · ${st.pending} escucha(s) por enviar` : '') + (st.error ? ` · <span class="warn">${esc(st.error)}</span>` : '')
+    : 'sin conectar';
+  $('#lfStatus').innerHTML = msg;
+  $('#lfConnect').hidden = !st.hasKey || !st.hasSecret || st.connected;
+  $('#lfToggleWrap').hidden = $('#lfDisconnect').hidden = !st.connected;
+  $('#lfToggle').checked = st.enabled;
+}
+async function refreshLastfm() {
+  try { renderLastfm(await App().LastfmState()); } catch (e) {}
+}
+window.runtime.EventsOn('lastfm', refreshLastfm);
+$('#saveLastfmSecret').onclick = async () => {
+  try { renderLastfm(await App().SaveLastfmSecret($('#lastfmSecret').value)); $('#settingsMsg').textContent = 'guardado'; }
+  catch (e) { $('#settingsMsg').textContent = 'Error: ' + e; }
+};
+$('#lfToggle').onchange = async e => { try { renderLastfm(await App().SetScrobbling(e.target.checked)); } catch (err) {} };
+$('#lfDisconnect').onclick = async () => { try { renderLastfm(await App().LastfmDisconnect()); } catch (e) {} };
+$('#lfConnect').onclick = async () => {
+  const btn = $('#lfConnect');
+  btn.disabled = true;
+  try {
+    await App().LastfmConnect();
+    $('#lfStatus').textContent = 'autoriza Trovador en la página de Last.fm que se ha abierto…';
+    for (let i = 0; i < 60; i++) { // 3 minutos
+      await new Promise(r => setTimeout(r, 3000));
+      try { renderLastfm(await App().LastfmFinish()); return; }
+      catch (e) { if (!String(e).includes('Last.fm 14')) throw e; } // 14: aún sin autorizar
+    }
+    $('#lfStatus').textContent = 'no ha llegado la autorización: vuelve a pulsar «conectar»';
+  } catch (e) { $('#lfStatus').textContent = 'Error: ' + e; }
+  finally { btn.disabled = false; }
+};
 $('#folderIcons').onchange = () => saveSettings({ folderIcons: $('#folderIcons').checked });
 
 // Cualquier error de JavaScript que se escape acaba en el registro de la

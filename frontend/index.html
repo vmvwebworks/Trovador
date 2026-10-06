@@ -424,6 +424,49 @@
   .src { font-size: 10px; padding: 1px 6px; border-radius: 8px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
   .src.musicbrainz { color: #c084fc; } .src.deezer { color: #a78bfa; } .src.bandcamp { color: #60a5fa; } .src.discogs { color: #f59e0b; }
   .mini { width: 56px; height: 56px; object-fit: cover; border-radius: 4px; background: var(--bg); display: block; }
+  .disc-head { display: flex; align-items: center; gap: 14px; margin-bottom: 6px; }
+  .disc-head img, .disc-head .ph { width: 72px; height: 72px; border-radius: 50%; object-fit: cover; background: var(--bg); border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 26px; }
+  .card.artist .thumb { border-radius: 50%; }
+  .card.have .thumb { opacity: .55; }
+  .card .badge.have { color: var(--ok); }
+  .card .badge.match { left: 14px; right: auto; color: var(--muted); }
+  .card .acts { margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .card .acts button { font-size: 11px; padding: 2px 8px; }
+  .preview { position: sticky; top: 0; z-index: 5; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin-top: 10px; box-shadow: 0 6px 18px rgba(0,0,0,.35); }
+  .preview audio { width: 100%; height: 36px; margin-top: 8px; }
+  #pvTracks { max-height: 210px; overflow: auto; margin-top: 6px; }
+  .pvt { display: flex; align-items: center; gap: 8px; padding: 2px 4px; border-radius: 6px; font-size: 13px; cursor: pointer; }
+  .pvt:hover { background: rgba(255,255,255,.04); }
+  .pvt.now { color: var(--accent); }
+  .pvt .n { width: 22px; text-align: right; color: var(--muted); }
+  .pvt .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .card.rel.playing, .card.artist.playing { border-color: var(--accent); }
+  .card .sub.tags { color: var(--accent); opacity: .75; }
+  .card .acts button.dismiss { margin-left: auto; color: var(--muted); }
+  .card.dismissed { opacity: .5; cursor: default; }
+  .crumbs { font-size: 12px; color: var(--muted); }
+  /* radio */
+  .radio-now { display: flex; gap: 22px; align-items: flex-start; flex-wrap: wrap; }
+  .radio-cover-box { width: 240px; flex-shrink: 0; }
+  .radio-cover { width: 240px; height: 240px; border-radius: 10px; object-fit: cover; display: block; background: var(--bg); border: 1px solid var(--line); }
+  .radio-cover.ph { display: flex; align-items: center; justify-content: center; font-size: 64px; }
+  .radio-info { flex: 1; min-width: 260px; display: flex; flex-direction: column; gap: 6px; }
+  .radio-info h3 { margin: 0; font-size: 22px; }
+  .radio-artist { font-size: 15px; }
+  .radio-mode { display: flex; align-items: center; gap: 6px; }
+  .radio-mode .chip { font-size: 12px; padding: 2px 10px; border-radius: 10px; border: 1px solid var(--line); color: var(--accent); }
+  .radio-mode #rdModeClear { padding: 1px 7px; font-size: 11px; }
+  .radio-mode #rdSeed { max-width: 180px; }
+  .radio-ctl { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+  .radio-ctl #rdLike.on { color: var(--bad); border-color: var(--bad); }
+  #radioAudio { width: 100%; height: 36px; margin-top: 6px; }
+  #radioAudio, #pvAudio { color-scheme: dark; }
+  .rd-like { display: flex; align-items: center; gap: 12px; padding: 6px 0; border-top: 1px solid var(--line); }
+  .rd-like:first-child { border-top: 0; }
+  .rd-like .t { flex: 1; min-width: 0; }
+  .rd-like .t b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rd-like .t span { color: var(--muted); font-size: 12px; }
+  .crumbs a { color: var(--accent); cursor: pointer; text-decoration: none; }
   .mini.none { display: flex; align-items: center; justify-content: center; color: var(--muted); border: 1px solid var(--line); }
   td.thumbcell { width: 60px; padding: 3px 6px; }
   .relcover { width: 96px; height: 96px; object-fit: cover; border-radius: 6px; background: var(--bg); flex-shrink: 0; }
@@ -443,7 +486,10 @@
   .dgroup td.keep { white-space: nowrap; }
   .miss { padding: 8px 0; border-top: 1px solid var(--line); }
   .miss:first-child { border-top: 0; }
-  .mhead { margin-bottom: 4px; }
+  .mhead { margin-bottom: 4px; display: flex; gap: 8px; align-items: baseline; }
+  .mhead button { font-size: 11px; padding: 1px 8px; }
+  #cmpAlbums { margin-top: 10px; }
+  #cmpAlbums .cand b { font-weight: 600; }
   .cand { display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--text); padding: 2px 0; }
   .cand .num { font-family: var(--mono); font-size: 12px; white-space: nowrap; }
   .origin { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
@@ -471,6 +517,7 @@
     <button data-tab="library">Biblioteca</button>
     <button data-tab="soulseek">Soulseek</button>
     <button data-tab="player">Reproductor</button>
+    <button data-tab="radio">Radio</button>
   </nav>
 
   <!-- ======================= DESCARGAS ======================= -->
@@ -517,6 +564,23 @@
       </div>
       <div class="row"><span class="meta">Con token, las búsquedas de la Biblioteca consultan también Discogs (demos, cintas, tiradas pequeñas). Sin él: MusicBrainz, Deezer y Bandcamp.</span></div>
       <div class="row">
+        <label>API key de Last.fm</label>
+        <input type="text" id="lastfmKey" placeholder="opcional: last.fm/api/account/create → API key (el shared secret no hace falta)" spellcheck="false">
+        <button class="ghost" id="saveLastfm">guardar</button>
+      </div>
+      <div class="row">
+        <label>Shared secret de Last.fm</label>
+        <input type="password" id="lastfmSecret" placeholder="para scrobblear: el «Shared secret» que sale junto a la API key" spellcheck="false">
+        <button class="ghost" id="saveLastfmSecret">guardar</button>
+      </div>
+      <div class="row">
+        <label>Scrobbling</label>
+        <span class="meta" id="lfStatus"></span>
+        <button class="ghost" id="lfConnect" hidden>conectar con Last.fm</button>
+        <label id="lfToggleWrap" hidden><input type="checkbox" id="lfToggle"> enviar lo que suena en el reproductor</label>
+        <button class="ghost" id="lfDisconnect" hidden>desconectar</button>
+      </div>
+      <div class="row">
         <label><input type="checkbox" id="folderIcons"> Iconos de carpeta</label>
         <span class="meta">Al aplicar carátula o etiquetas, la carpeta del disco pasa a verse en el gestor de archivos como lo que es (CD, vinilo, cinta o funda) con su carátula; las carpetas de artista, con su logo o foto. Deja unos ficheros ocultos dentro (desktop.ini y folder.ico; en Linux también .folder.png, .directory y .hidden); se puede quitar desde la ficha del disco.</span>
       </div>
@@ -547,6 +611,7 @@
         <button class="ghost" id="libRename" title="Poner a cada carpeta de disco el nombre que le toca (dentro de la carpeta de su artista, el título a secas; suelta, «Artista - Álbum (Año)»): con los discos marcados, o con todos si no marcas ninguno. Antes de tocar nada muestra el cambio de cada uno y puedes desmarcar los que no quieras.">renombrar</button>
         <button class="ghost" id="libOrganize" title="Meter cada disco marcado en la carpeta de su artista (Colección › Artista › Disco), creándola si no existe; en discos entre varios artistas manda el primero acreditado. Antes de mover, lo propone.">por artista</button>
         <button class="ghost" id="libCarry" title="Copiar los discos marcados (o todos) a otra carpeta, por ejemplo el USB del coche: cada uno en su carpeta «Artista - Álbum», nombres aptos para FAT32, solo audio y carátulas, y si quieres convirtiendo a MP3 lo que no lo sea. Antes de copiar enseña el plan y si cabe.">llevarse…</button>
+        <button class="ghost" id="libDiscover" title="Buscar artistas y discos que no tienes: discografías con lo que ya está en la colección marcado, artistas parecidos y descargar lo que falte">descubrir</button>
         <span class="seg" id="libView"><button data-view="grid" title="miniaturas">▦</button><button data-view="list" title="lista">☰</button></span>
         <span class="spacer"></span>
         <button class="ghost" id="libAccept" disabled title="Confirmar de golpe las propuestas que cuadran (íntegras o separables)">Aceptar propuestas</button>
@@ -570,6 +635,26 @@
     <div id="libDupesView" hidden>
       <h2>Duplicados <span class="meta" id="dupMeta"></span><span class="spacer"></span><button class="ghost" id="dupBack">← volver a la lista</button></h2>
       <div id="dupGroups"></div>
+    </div>
+
+    <div id="libDiscoverView" hidden>
+      <h2>Descubrir <span class="meta" id="discMeta"></span><span class="spacer"></span><button class="ghost" id="discBack">← volver a la lista</button></h2>
+      <div class="panel">
+        <div class="row first">
+          <input type="text" id="discQuery" placeholder="Artista, disco o «Artista - Disco»" spellcheck="false">
+          <button id="discGo">Buscar</button>
+          <button class="ghost" id="discForYou" title="Artistas que se parecen a varios de los de tu colección, según Last.fm (hace falta su API key en Ajustes)">para ti</button>
+          <span class="spacer"></span>
+          <input type="text" id="discHide" class="small" placeholder="ocultar estilos (p. ej. pop, nsbm)" title="Etiquetas de Last.fm separadas por comas: los sugeridos que las lleven no se enseñan" spellcheck="false" style="max-width:240px">
+        </div>
+        <div class="row"><span class="crumbs" id="discCrumbs"></span><span class="spacer"></span><span class="err" id="discErr"></span></div>
+        <div class="preview" id="discPreview" hidden>
+          <div class="row first"><img class="mini" id="pvCover" alt="" hidden><div style="min-width:0"><b id="pvTitle"></b><br><span class="meta" id="pvMeta"></span></div><span class="spacer"></span><button class="ghost" id="pvGet">descargar</button><button class="ghost" id="pvClose">cerrar</button></div>
+          <audio id="pvAudio" controls></audio>
+          <div id="pvTracks"></div>
+        </div>
+        <div id="discBody" style="margin-top:12px"></div>
+      </div>
     </div>
 
     <div id="libRenameView" hidden>
@@ -635,7 +720,7 @@
           <div style="flex:1;min-width:0">
             <h3 id="libDetailName"></h3>
             <div class="facts" id="libFacts"></div>
-            <div class="row"><span class="mono dim" id="libDetailPath"></span><span class="spacer"></span><button class="ghost" id="libOpenDir">abrir carpeta</button></div>
+            <div class="row"><span class="mono dim" id="libDetailPath"></span><span class="spacer"></span><button class="ghost" id="libDiscog" title="Discografía del artista (lo que tienes y lo que te falta) y artistas parecidos">discografía y parecidos</button><button class="ghost" id="libOpenDir">abrir carpeta</button></div>
             <div class="row icon-row">
               <img id="iconPreview" alt="" hidden>
               <label>Icono
@@ -712,6 +797,7 @@
           <button class="ghost" id="cmpOpen">abrir carpeta</button>
           <button id="cmpDownload">Descargar marcadas</button>
         </div>
+        <div id="cmpAlbums"></div>
         <div id="cmpTable" style="margin-top:10px"></div>
         <div class="summary" id="cmpSummary"></div>
       </div>
@@ -758,6 +844,38 @@
 
     <h2>Descargas <span class="meta" id="slskTransfersMeta"></span><span class="spacer"></span><button class="ghost" id="slskClearDone">quitar terminadas</button><button class="ghost" id="slskOpenDl">abrir carpeta</button></h2>
     <div class="panel" id="slskTransfers"><p class="empty">Ninguna descarga.</p></div>
+  </section>
+
+  <!-- ======================= RADIO ======================= -->
+  <section class="tab" id="tab-radio">
+    <div class="panel radio-now">
+      <div class="radio-cover-box"><img class="radio-cover" id="rdCover" alt="" hidden><div class="radio-cover ph" id="rdPh">📻</div></div>
+      <div class="radio-info">
+        <div class="radio-mode">
+          <span class="chip" id="rdMode">Para ti</span><button class="ghost" id="rdModeClear" title="volver a «para ti»" hidden>✕</button>
+          <span class="spacer"></span>
+          <input type="text" id="rdSeed" class="small" placeholder="artista" spellcheck="false"><button class="ghost" id="rdSeedGo" title="radio de este artista">📻</button>
+        </div>
+        <div class="meta" id="rdSource"></div>
+        <h3 id="rdTitle"></h3>
+        <div class="radio-artist" id="rdArtist"></div>
+        <div class="meta" id="rdWhy"></div>
+        <div class="sub tags" id="rdTags"></div>
+        <div class="radio-ctl">
+          <button id="rdPlay">▶ empezar</button>
+          <button class="ghost" id="rdNext" title="siguiente" disabled>⏭ siguiente</button>
+          <button class="ghost" id="rdLike" title="Me gusta: se guarda con su disco para bajarlo, y el artista cuenta para tu gusto" disabled>♥ me gusta</button>
+          <button class="ghost" id="rdNope" title="No me gusta: salta y este artista no vuelve a sonar" disabled>✕ no me gusta</button>
+          <button class="ghost" id="rdArtistBtn" title="Su discografía y artistas parecidos (Biblioteca › Descubrir)" disabled>ver artista</button>
+        </div>
+        <audio id="radioAudio" controls hidden></audio>
+        <div class="meta" id="rdStatus"></div>
+      </div>
+    </div>
+    <div id="rdLikesBox" hidden>
+      <h2>Te han gustado <span class="meta" id="rdLikesMeta"></span></h2>
+      <div class="panel" id="rdLikes"></div>
+    </div>
   </section>
 
   <section class="tab" id="tab-player">
@@ -895,6 +1013,8 @@
 
 <script src="downloads.js"></script>
 <script src="library.js"></script>
+<script src="discover.js"></script>
+<script src="radio.js"></script>
 <script src="soulseek.js"></script>
 <script src="player.js"></script>
 </body>
