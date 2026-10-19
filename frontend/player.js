@@ -30,6 +30,8 @@ let blobURL = '';     // objeto URL de la pista cargada
 let loadingPath = ''; // pista que se está pidiendo (para ignorar respuestas tardías)
 
 const mediaURL = p => '/media?p=' + encodeURIComponent(p);
+let mediaBaseP;
+const mediaBase = () => mediaBaseP || (mediaBaseP = App().MediaBase().catch(() => ''));
 const noExt = n => n.replace(/\.[^.]+$/, '');
 const dirOf = p => p.replace(/[\\/][^\\/]+$/, '');
 const joinPath = (dir, name) => dir + (dir.includes('/') && !dir.includes('\\') ? '/' : '\\') + name;
@@ -81,13 +83,19 @@ async function play(i) {
   if (el) el.scrollIntoView({ block: 'nearest' });
   $('#nbSub').textContent = 'cargando…';
   try {
-    const resp = await fetch(mediaURL(t.path));
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    const blob = await resp.blob();
-    if (loadingPath !== t.path) return; // el usuario ya pidió otra
-    if (blobURL) URL.revokeObjectURL(blobURL);
-    blobURL = URL.createObjectURL(blob);
-    audio.src = blobURL;
+    const base = await mediaBase();
+    if (base) { // Linux: streaming por HTTP local, sin Blob (ver media_server.go)
+      if (loadingPath !== t.path) return;
+      audio.src = base + mediaURL(t.path);
+    } else {
+      const resp = await fetch(mediaURL(t.path));
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const blob = await resp.blob();
+      if (loadingPath !== t.path) return; // el usuario ya pidió otra
+      if (blobURL) URL.revokeObjectURL(blobURL);
+      blobURL = URL.createObjectURL(blob);
+      audio.src = blobURL;
+    }
     await audio.play();
     scrobbleStart(t);
   } catch (e) {
@@ -1114,7 +1122,9 @@ function renderDeckState() {
 
 // audioGraph: el analizador del audio (un canal por analizador), compartido
 // por los vúmetros de la pletina y el latido del carrusel. Solo se puede
-// enganchar una vez al <audio>, por eso se guarda.
+// enganchar una vez al <audio>, por eso se guarda. Se monta solo cuando se
+// ve la pletina o el carrusel: desde entonces el sonido pasa por Web Audio,
+// y en WebKitGTK eso da saltos si la máquina va justa de CPU.
 function audioGraph() {
   if (!dk.ctx) {
     try {
@@ -1142,8 +1152,7 @@ function level(an, buf) {
 
 // Vúmetros y contador con el audio de verdad: un analizador por canal.
 function startMeters() {
-  if (!audioGraph()) return;
-  if (dk.raf) return;
+  if (!dkOn() || dk.raf || !audioGraph()) return;
   const buf = new Uint8Array(512);
   const needles = [$('#dkVu1 i'), $('#dkVu2 i')];
   const tick = () => {
@@ -1352,7 +1361,7 @@ function renderCarouselState() {
 
 // El latido: la carátula grande crece un pelo con el nivel del audio.
 function startPulse() {
-  if (!audioGraph() || cv.raf) return;
+  if (!cvOn() || cv.raf || !audioGraph()) return;
   const buf = new Uint8Array(512);
   const tick = () => {
     cv.raf = 0;
